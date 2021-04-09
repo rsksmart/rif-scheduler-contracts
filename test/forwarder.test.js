@@ -9,67 +9,71 @@ contract('Forwarder', () => {
     this.forwarder = await Forwarder.new()
   })
 
-  it('lists a new metatransaction', async () => {
-    const to = this.counter.address
-    const data = web3.utils.sha3('inc()').slice(0, 10)
-    const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
-    const value = new web3.utils.BN(0)
+  describe('listing', () => {
+    it('lists a new metatransaction', async () => {
+      const to = this.counter.address
+      const data = web3.utils.sha3('inc()').slice(0, 10)
+      const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
+      const value = new web3.utils.BN(0)
 
-    await this.forwarder.add(to, data, gas)
+      await this.forwarder.add(to, data, gas)
 
-    const actual = await this.forwarder.at(0)
+      const actual = await this.forwarder.at(0)
 
-    assert.strictEqual(actual[0], to)
-    assert.strictEqual(actual[1], data)
-    assert.strictEqual(actual[2].toString(), gas.toString())
-    assert.strictEqual(actual[3].toString(), value.toString())
-    assert.strictEqual(actual[4], false)
+      assert.strictEqual(actual[0], to)
+      assert.strictEqual(actual[1], data)
+      assert.strictEqual(actual[2].toString(), gas.toString())
+      assert.strictEqual(actual[3].toString(), value.toString())
+      assert.strictEqual(actual[4], false)
+    })
+
+    it('lists a new metatransaction with value', async () => {
+      const to = this.counter.address
+      const data = web3.utils.sha3('inc()').slice(0, 10)
+      const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
+      const value = new web3.utils.BN(1e15)
+
+      await this.forwarder.add(to, data, gas, { value })
+
+      const actual = await this.forwarder.at(0)
+
+      assert.strictEqual(actual[0], to)
+      assert.strictEqual(actual[1], data)
+      assert.strictEqual(actual[2].toString(), gas.toString())
+      assert.strictEqual(actual[3].toString(), value.toString())
+      assert.strictEqual(actual[4], false)
+    })
   })
 
-  it('lists a new metatransaction with value', async () => {
-    const to = this.counter.address
-    const data = web3.utils.sha3('inc()').slice(0, 10)
-    const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
-    const value = new web3.utils.BN(1e15)
+  describe('execution', () => {
+    it('executes a listed a metatransaction', async () => {
+      const to = this.counter.address
+      const data = web3.utils.sha3('inc()').slice(0, 10)
+      const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
+      const value = new web3.utils.BN(0)
 
-    await this.forwarder.add(to, data, gas, { value })
+      await this.forwarder.add(to, data, gas)
 
-    const actual = await this.forwarder.at(0)
+      await this.forwarder.execute(0)
 
-    assert.strictEqual(actual[0], to)
-    assert.strictEqual(actual[1], data)
-    assert.strictEqual(actual[2].toString(), gas.toString())
-    assert.strictEqual(actual[3].toString(), value.toString())
-    assert.strictEqual(actual[4], false)
-  })
+      assert.strictEqual(await this.forwarder.at(0).then(meta => meta[4]), true)
+      assert.strictEqual(await this.counter.count().then(r => r.toString()), '1')
+      assert.strictEqual(await web3.eth.getBalance(this.counter.address).then(r => r.toString()), value.toString())
+    })
 
-  it('executes a listed a metatransaction', async () => {
-    const to = this.counter.address
-    const data = web3.utils.sha3('inc()').slice(0, 10)
-    const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
-    const value = new web3.utils.BN(0)
+    it('executes a listed a metatransaction with value', async () => {
+      const to = this.counter.address
+      const data = web3.utils.sha3('inc()').slice(0, 10)
+      const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
+      const value = new web3.utils.BN(1e15)
 
-    await this.forwarder.add(to, data, gas)
+      await this.forwarder.add(to, data, gas, { value })
 
-    await this.forwarder.execute(0)
+      await this.forwarder.execute(0)
 
-    assert.strictEqual(await this.forwarder.at(0).then(meta => meta[4]), true)
-    assert.strictEqual(await this.counter.count().then(r => r.toString()), '1')
-    assert.strictEqual(await web3.eth.getBalance(this.counter.address).then(r => r.toString()), value.toString())
-  })
-
-  it('executes a listed a metatransaction with value', async () => {
-    const to = this.counter.address
-    const data = web3.utils.sha3('inc()').slice(0, 10)
-    const gas = new web3.utils.BN(await this.counter.inc.estimateGas())
-    const value = new web3.utils.BN(1e15)
-
-    await this.forwarder.add(to, data, gas, { value })
-
-    await this.forwarder.execute(0)
-
-    assert.strictEqual(await this.forwarder.at(0).then(meta => meta[4]), true)
-    assert.strictEqual(await this.counter.count().then(r => r.toString()), '1')
-    assert.strictEqual(await web3.eth.getBalance(this.counter.address).then(r => r.toString()), value.toString())
+      assert.strictEqual(await this.forwarder.at(0).then(meta => meta[4]), true)
+      assert.strictEqual(await this.counter.count().then(r => r.toString()), '1')
+      assert.strictEqual(await web3.eth.getBalance(this.counter.address).then(r => r.toString()), value.toString())
+    })
   })
 })
