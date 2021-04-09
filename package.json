@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@truffle/hdwallet-provider": "^1.2.6",
     "truffle": "^5.3.1"
   }
 }
