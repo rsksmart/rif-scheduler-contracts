@@ -29,7 +29,7 @@ truffle(develop)> migrate
 
 ### Deploy on RSK Testnet
 
-First create a `.secret` file with a mnemonic phrase. You can create one here https://iancoleman.io/bip39/ (do not use this on production)
+First create a `.secret` file with a mnemonic phrase. You can create one here https://iancoleman.io/bip39/ (do not use this on production), and get funds in [RSK Testnet faucet](https:/faucet.rsk.co)
 
 Then run
 
