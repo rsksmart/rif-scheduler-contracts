@@ -22,12 +22,16 @@ contract Forwarder {
   event MetatransactionAdded(uint indexed index, address to, bytes data, uint gas, uint timestamp, uint value);
   event MetatransactionExecuted(uint indexed index, bool succes, bytes result);
 
-  function add(address to, bytes memory data, uint gas, uint timestamp) public payable {
+  function schedule(address to, bytes memory data, uint gas, uint timestamp) public payable {
+    // We should charge the user for the execution. Refund is given if service provider
+    // fails to execute the transaction
+
+    // Important! Check the schedule is not for the past
     bag.push(Metatransaction(to, data, gas, timestamp, msg.value, false));
     emit MetatransactionAdded(bag.length - 1, to, data, gas, timestamp, msg.value);
   }
 
-  function at(uint index) public view returns(address, bytes memory, uint, uint, uint, bool) {
+  function getSchedule(uint index) public view returns(address, bytes memory, uint, uint, uint, bool) {
     Metatransaction memory metatransaction = bag[index];
     return (metatransaction.to, metatransaction.data, metatransaction.gas, metatransaction.timestamp, metatransaction.value, metatransaction.executed);
   }
@@ -37,7 +41,9 @@ contract Forwarder {
 
     require(!metatransaction.executed, "Already executed");
 
-    // Here we can add refund business logic instead of prohibiting execution
+    // Instead of just reverting, here we should:
+    // - give the requestor a refund
+    // - penalize the service provider
     require(metatransaction.timestamp - window < block.timestamp, "Too soon");
     require(metatransaction.timestamp + window > block.timestamp, "Too late");
 
@@ -51,7 +57,12 @@ contract Forwarder {
 
     // The difference when calling gasleft() again is (aprox.) the gas used
     // in the call
+
     metatransaction.executed = true;
+
+    // After executing we do the payout to the service provider:
+    // - return the gas used
+    // - send the tokens paid for the service
 
     emit MetatransactionExecuted(index, success, result);
   }
