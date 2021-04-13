@@ -7,4 +7,8 @@ contract Counter {
   function inc() public payable {
     count += count + 1;
   }
+
+  function fail() public pure {
+    revert("Boom");
+  }
 }
