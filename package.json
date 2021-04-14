@@ -11,5 +11,8 @@
   "devDependencies": {
     "@truffle/hdwallet-provider": "^1.2.6",
     "truffle": "^5.3.1"
+  },
+  "dependencies": {
+    "@rsksmart/erc677": "^1.0.2"
   }
 }
