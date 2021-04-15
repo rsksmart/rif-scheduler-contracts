@@ -6,6 +6,7 @@ import "@rsksmart/erc677/contracts/IERC677.sol";
 contract OneShotSchedule {
   uint window;
   IERC677 token; 
+  address providerAccount;
   uint price;
 
   mapping(address => uint) remainingSchedulings;
@@ -30,9 +31,10 @@ contract OneShotSchedule {
     token = _rifToken;
     price = _price;
     window = _window;
+    providerAccount = _providerAccount;
   }
 
-  function _totalPrice(uint _amount) private returns (uint){
+  function _totalPrice(uint _amount) private view returns (uint){
     return _amount * price;
   }
 
@@ -56,7 +58,7 @@ contract OneShotSchedule {
   }
 
   function schedule(address to, bytes memory data, uint gas, uint executionTime) public payable {
-    require(now <= executionTime, 'Cannot schedule in past');
+    require(block.timestamp <= executionTime, 'Cannot schedule in past');
     _spend(msg.sender);
     transactionsScheduled.push(Metatransaction(msg.sender,to, data, gas, executionTime, msg.value, false));
     emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, to, data, gas, executionTime, msg.value);
@@ -76,7 +78,7 @@ contract OneShotSchedule {
     // - give the requestor a refund
     // - penalize the service provider
     require(metatransaction.timestamp - window < block.timestamp, "Too soon");
-    require(metatransaction.timestamp + window > block.timestamp, "Too late");
+    require(metatransaction.timestamp + window >  block.timestamp, "Too late");
 
     // We can use gasleft() here to charge the consumer for the gas
     // A contract may hold user's gas and charge it after executing
