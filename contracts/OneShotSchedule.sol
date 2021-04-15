@@ -20,9 +20,9 @@ contract OneShotSchedule {
     bool executed;
   }
 
-  Metatransaction[] private bag;
+  Metatransaction[] private transactionsScheduled;
 
-  event MetatransactionAdded(uint indexed index, address to, bytes data, uint gas, uint timestamp, uint value);
+  event MetatransactionAdded(uint indexed index, address indexed from, address indexed to, bytes data, uint gas, uint timestamp, uint value);
   event MetatransactionExecuted(uint indexed index, bool succes, bytes result);
 
   constructor(IERC677 _rifToken, address _providerAccount, uint _price, uint _window) public {
@@ -37,7 +37,7 @@ contract OneShotSchedule {
   }
 
   function purchase(uint _amount) public {
-    //require(token.allowance(msg.sender, address(this)) >= _totalPrice(_amount), 'Allowance Excedeed');
+    require(token.allowance(msg.sender, address(this)) >= _totalPrice(_amount), 'Allowance Excedeed');
     token.transferFrom(msg.sender, address(this), _totalPrice(_amount));
     remainingSchedulings[msg.sender] += _amount ;
   }
@@ -46,27 +46,29 @@ contract OneShotSchedule {
     return remainingSchedulings[_requestor];
   }
 
-  function spend(address _requestor) private {
-    require(remainingSchedulings[_requestor] > 0);
-    remainingSchedulings[_requestor] = remainingSchedulings[msg.sender] - 1;
+  function _spend(address _requestor) private {
+    require(remainingSchedulings[_requestor] > 0, 'No balance available');
+    remainingSchedulings[_requestor] -= 1;
   }
 
-  function schedule(address to, bytes memory data, uint gas, uint timestamp) public payable {
-    // We should charge the user for the execution. Refund is given if service provider
-    // fails to execute the transaction
-
-    // Important! Check the schedule is not for the past
-    bag.push(Metatransaction(msg.sender,to, data, gas, timestamp, msg.value, false));
-    emit MetatransactionAdded(bag.length - 1, to, data, gas, timestamp, msg.value);
+  function _refund(address _requestor) private {
+    remainingSchedulings[_requestor] += 1;
   }
 
-  function getSchedule(uint index) public view returns(address, bytes memory, uint, uint, uint, bool) {
-    Metatransaction memory metatransaction = bag[index];
-    return (metatransaction.to, metatransaction.data, metatransaction.gas, metatransaction.timestamp, metatransaction.value, metatransaction.executed);
+  function schedule(address to, bytes memory data, uint gas, uint executionTime) public payable {
+    require(now <= executionTime, 'Cannot schedule in past');
+    _spend(msg.sender);
+    transactionsScheduled.push(Metatransaction(msg.sender,to, data, gas, executionTime, msg.value, false));
+    emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, to, data, gas, executionTime, msg.value);
+  }
+
+  function getSchedule(uint index) public view returns(address, address, bytes memory, uint, uint, uint, bool) {
+    Metatransaction memory metatransaction = transactionsScheduled[index];
+    return (metatransaction.from, metatransaction.to, metatransaction.data, metatransaction.gas, metatransaction.timestamp, metatransaction.value, metatransaction.executed);
   }
 
   function execute(uint index) public {
-    Metatransaction storage metatransaction = bag[index];
+    Metatransaction storage metatransaction = transactionsScheduled[index];
 
     require(!metatransaction.executed, "Already executed");
 
