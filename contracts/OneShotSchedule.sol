@@ -23,6 +23,7 @@ contract OneShotSchedule {
 
   Metatransaction[] private transactionsScheduled;
 
+  event SchedulingsPurchased(address indexed from, uint amount);
   event MetatransactionAdded(uint indexed index, address indexed from, address indexed to, bytes data, uint gas, uint timestamp, uint value);
   event MetatransactionExecuted(uint indexed index, bool succes, bytes result);
 
@@ -41,7 +42,17 @@ contract OneShotSchedule {
   function purchase(uint _amount) public {
     require(token.allowance(msg.sender, address(this)) >= _totalPrice(_amount), 'Allowance Excedeed');
     token.transferFrom(msg.sender, address(this), _totalPrice(_amount));
-    remainingSchedulings[msg.sender] += _amount ;
+    remainingSchedulings[msg.sender] += _amount;
+    emit SchedulingsPurchased(msg.sender, _amount);
+  }
+
+  function tokenFallback(address _from, uint256 _amount, bytes calldata _data) external returns(bool) {
+    require(address(token) == address(msg.sender),"Bad token");
+    uint _schedulingAmount = abi.decode(_data, ( uint));
+    require(_amount == _totalPrice(_schedulingAmount), "Transferred amount doens't match total purchase");
+    remainingSchedulings[_from] += _schedulingAmount ;
+    emit SchedulingsPurchased(_from, _schedulingAmount);
+    return true;
   }
 
   function getRemainingSchedulings(address _requestor) public view returns(uint){
