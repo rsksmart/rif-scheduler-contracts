@@ -93,10 +93,11 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   function schedule(
     address to,
-    bytes memory data,
+    bytes calldata data,
     uint256 gas,
     uint256 executionTime
-  ) public payable {
+  ) external payable {
+    // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     _spend(msg.sender);
     transactionsScheduled.push(Metatransaction(msg.sender, to, data, gas, executionTime, msg.value, false));
@@ -128,7 +129,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     );
   }
 
-  function execute(uint256 index) public {
+  function execute(uint256 index) external {
     Metatransaction storage metatransaction = transactionsScheduled[index];
 
     require(!metatransaction.executed, 'Already executed');
@@ -136,7 +137,10 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // Instead of just reverting, here we should:
     // - give the requestor a refund
     // - penalize the service provider
+
+    // slither-disable-next-line timestamp
     require(metatransaction.timestamp.sub(window) < block.timestamp, 'Too soon');
+    // slither-disable-next-line timestamp
     require(metatransaction.timestamp.add(window) > block.timestamp, 'Too late');
 
     // We can use gasleft() here to charge the consumer for the gas
@@ -148,6 +152,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // Now failing transactions are forwarded. Is responsability of the requestor
     // to list a valid transaction
 
+    // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) =
       metatransaction.to.call.gas(metatransaction.gas).value(metatransaction.value)(metatransaction.data);
 

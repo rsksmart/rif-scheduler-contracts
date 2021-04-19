@@ -4,11 +4,12 @@ pragma solidity >=0.4.22 <0.9.0;
 contract Counter {
   uint256 public count = 0;
 
-  function inc() public payable {
+  // slither-disable-next-line locked-ether
+  function inc() external payable {
     count += count + 1;
   }
 
-  function fail() public pure {
+  function fail() external pure {
     revert('Boom');
   }
 }

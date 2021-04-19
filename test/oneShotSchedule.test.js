@@ -36,7 +36,7 @@ contract('OneShotSchedule', (accounts) => {
       schedulingPrice,
       web3.utils.toBN(window)
     )
-    this.counter = await Counter.new()
+    this.counter = await Counter.new(accounts[0])
   })
 
   describe('payments', () => {
