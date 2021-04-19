@@ -65,7 +65,7 @@ contract('SchedulePaymentsLock', (accounts) => {
       () =>this.testERC677PurchaseWithValue(10, 10 * schedulingPrice))
 
     it("should reject if payment doesn't match total amount'", 
-      async () => await assert.rejects(this.testERC677PurchaseWithValue(10, schedulingPrice), "Transferred amount doens't match total purchase"))
+      () => assert.rejects(this.testERC677PurchaseWithValue(10, schedulingPrice), "Transferred amount doens't match total purchase"))
 
     it('should receive RIF tokens to purchase 1 scheduled - ERC20 way', async () => await this.testPurchaseWithValue(1))
     it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', async () => await this.testPurchaseWithValue(web3.utils.toBN(10)))
