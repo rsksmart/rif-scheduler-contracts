@@ -60,7 +60,7 @@ contract('SchedulePaymentsLock', (accounts) => {
     })
 
     it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', 
-      async () =>await this.testERC677PurchaseWithValue(1, 1 * schedulingPrice))
+      () => this.testERC677PurchaseWithValue(1, 1 * schedulingPrice))
     it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', 
       async () =>await this.testERC677PurchaseWithValue(10, 10 * schedulingPrice))
 
