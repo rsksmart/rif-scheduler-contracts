@@ -1,3 +1,7 @@
 node_modules
 .secret
 build
+.vscode/slither-results.json
+coverage
+.DS_Store
+coverage.json
