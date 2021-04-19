@@ -3,82 +3,56 @@
 </p>
 <h3 align="middle">RIF Scheduler contracts POC</h3>
 <p align="middle">
-    A POC of RIF scheduler smart contracts
+    RIF Scheduler smart contracts
+</p>
+<p>
+    <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml" alt="ci">
+        <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml/badge.svg" alt="ci" />
+    </a>
 </p>
 
-## Run locally
+RIF Scheduler smart contracts are used to
+- pay for the service with RIF tokens,
+- schedule transactions,
+- check transaction execution statuses and
+- allow the service provider to execute the transactions and collect their reward
 
-First of all, install the dependencies
+## Run for development
+
+Install dependencies:
 
 ```
 npm i
 ```
 
-### Run tests
+### Run unit tests
 
 ```
 npm test
 ```
 
-### Run in local network
+Coverage report with:
 
 ```
-npx truffle develop
-truffle(develop)> migrate
+npm run coverage
 ```
 
-### Deploy on RSK Testnet
-
-First create a `.secret` file with a mnemonic phrase. You can create one here https://iancoleman.io/bip39/ (do not use this on production), and get funds in [RSK Testnet faucet](https:/faucet.rsk.co)
-
-Then run
+### Run linter
 
 ```
-npx truffle console --network rskTestnet
-truffle(rskTestnet)> migrate
+npm run lint
 ```
 
-## Contracts
+Auto-fix:
 
-### Forwarder
-
-Forwards transactions that are stored in a list
-
-RSK Testnet: [`0x9F24a0BDbAa5DBA945829C7AeEfAF4D1cEf8158f`](https://explorer.testnet.rsk.co/address/0x9f24a0bdbaa5dba945829c7aeefaf4d1cef8158f)
-
-```solidity
-function add(address to, bytes memory data, uint gas) public payable
+```
+npm run lint:fix
 ```
 
-Use `add` to add a transaction to the list. It will emit an event with the index in the array. Add `value` to the transaction, to forward it in the execution.
+### Static analysis
 
-```solidity
-function at(uint index) public view returns(address, bytes memory, uint, uint, bool)
+First install [`slither`](https://github.com/crytic/slither) and run:
+
 ```
-
-Use `at` to query the status of a transaction. It will return if it was executed or not, together with the set values.
-
-```solidity
-function execute(uint index) public
+slither .
 ```
-
-Executes a transaction of the list that was not executed before. It will emit an event with the result or revert if the forwarding fails.
-
-
-### Counter
-
-A dummy counter to test calls from `Forwarder`
-
-RSK Testnet: [`0x3f21Ab1ADd7f85aa7bf479c64C0c603183e8A7A2`](https://explorer.testnet.rsk.co/address/0x3f21ab1add7f85aa7bf479c64c0c603183e8a7a2)
-
-```solidity
-uint public count
-```
-
-Get the current count
-
-```solidity
-function inc() public payable
-```
-
-Increment the count. Also use this for testing the value forwarding.
