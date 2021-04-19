@@ -11,6 +11,7 @@
   "devDependencies": {
     "@openzeppelin/test-helpers": "^0.5.10",
     "@truffle/hdwallet-provider": "^1.2.6",
+    "ganache-time-traveler": "^1.0.15",
     "truffle": "^5.3.1"
   },
   "dependencies": {

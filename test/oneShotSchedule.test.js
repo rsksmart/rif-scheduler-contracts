@@ -5,7 +5,7 @@ const Counter = artifacts.require('Counter')
 const assert = require('assert')
 const { hasUncaughtExceptionCaptureCallback } = require('process')
 const { time } = require('@openzeppelin/test-helpers');
-const { takeSnapshot, revertToSnapshot } = require('./timeMachine.js');
+const timeMachine = require('ganache-time-traveler');
 
 const schedulingPrice = web3.utils.toBN(15)
 const window = 10000
@@ -21,11 +21,11 @@ const solidityError = message => ({
 })
 
 let initialSnapshot = null 
-takeSnapshot().then(id=>{ initialSnapshot = id})
+timeMachine.takeSnapshot().then(id=>{ initialSnapshot = id})
 
-contract('SchedulePaymentsLock', (accounts) => {
+contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    await revertToSnapshot(initialSnapshot)
+    await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(accounts[0], web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF', web3.utils.toBN('18'));
     this.serviceProviderAccount = accounts[1]
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount, schedulingPrice, web3.utils.toBN(window))
@@ -68,7 +68,7 @@ contract('SchedulePaymentsLock', (accounts) => {
       () => assert.rejects(this.testERC677PurchaseWithValue(10, schedulingPrice), "Transferred amount doens't match total purchase"))
 
     it('should receive RIF tokens to purchase 1 scheduled - ERC20 way', () => this.testPurchaseWithValue(1))
-    it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', async () => await this.testPurchaseWithValue(web3.utils.toBN(10)))
+    it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', () => this.testPurchaseWithValue(web3.utils.toBN(10)))
 
     it('should reject if not approved', 
     () => assert.rejects( this.testPurchaseWithValue(web3.utils.toBN(1e15)), "Allowance Excedeed"))
@@ -77,11 +77,9 @@ contract('SchedulePaymentsLock', (accounts) => {
 
   describe('scheduling', () => {
     beforeEach( () => {
-      this.testListingWithValue = async (value) => {
+      this.testListingWithValue = async (value, timestamp) => {
         const to = this.counter.address
         const gas = web3.utils.toBN(await this.counter.inc.estimateGas())
-        const timestamp = await time.latest() + 100
-
         await this.token.approve(this.oneShotSchedule.address, web3.utils.toBN(1000))
         await this.oneShotSchedule.purchase(1)
         await this.oneShotSchedule.schedule(to, incData, gas, timestamp, { value })
@@ -100,8 +98,23 @@ contract('SchedulePaymentsLock', (accounts) => {
       }
     })
 
-    it('schedule a new metatransaction', () => this.testListingWithValue(web3.utils.toBN(0)))
-    it('schedule a new metatransaction with value', () => this.testListingWithValue(web3.utils.toBN(1e15)))
+    it('schedule a new metatransaction', async () => {
+      const nearFuture = await time.latest() + 100
+      return this.testListingWithValue(web3.utils.toBN(0),nearFuture)
+    })
+
+    it('schedule a new metatransaction with value', async () => {
+      const nearFuture = await time.latest() + 100
+      return this.testListingWithValue(web3.utils.toBN(1e15),nearFuture)
+    })
+
+    it('cannot schedule in the past', async () => {
+      const nearPast = await time.latest() - 100
+      return await assert.rejects(
+        this.testListingWithValue(web3.utils.toBN(1e15),1),
+        solidityError('Cannot schedule it in the past')
+      )
+    })
   })
 
   describe('execution', async() => {
