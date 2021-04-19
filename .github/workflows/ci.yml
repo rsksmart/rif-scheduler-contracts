@@ -43,6 +43,7 @@ jobs:
 
   scan:
     runs-on: ubuntu-latest
+    needs: setup
     steps:
       - name: Slither Static Analysis
         uses: luisfontes19/slither-static-analysis-action@v0.3.2
