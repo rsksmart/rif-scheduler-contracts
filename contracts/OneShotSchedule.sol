@@ -30,8 +30,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
   event MetatransactionExecuted(uint indexed index, bool succes, bytes result);
 
   constructor(IERC677 _rifToken, address _providerAccount, uint _price, uint _window) public {
-    require(_providerAccount != address(0x0));
-    require(address(_rifToken) != address(0x0));
+    require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
+    require(address(_rifToken) != address(0x0), "Provider's address cannot be 0x0");
     window = _window;
     token = _rifToken;
     price = _price;
@@ -74,7 +74,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     remainingSchedulings[requestor] = remainingSchedulings[requestor].add(1);
   }
 
-  function schedule(address to, bytes memory data, uint gas, uint executionTime) external payable {
+  function schedule(address to, bytes memory data, uint gas, uint executionTime) public payable {
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     _spend(msg.sender);
     transactionsScheduled.push(Metatransaction(msg.sender,to, data, gas, executionTime, msg.value, false));
