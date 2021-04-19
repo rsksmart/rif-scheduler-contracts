@@ -53,7 +53,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
   function tokenFallback(address _from, uint256 _amount, bytes calldata _data) external returns(bool) {
     require(address(token) == address(msg.sender),"Bad token");
     uint _schedulingAmount = abi.decode(_data, ( uint));
-    require(_amount == _totalPrice(_schedulingAmount), "Transferred amount doens't match total purchase");
+    require(_amount == _totalPrice(_schedulingAmount), "Transferred amount doesn't match total purchase");
     remainingSchedulings[_from] = remainingSchedulings[_from].add(_schedulingAmount);
     emit SchedulingsPurchased(_from, _schedulingAmount);
     return true;
