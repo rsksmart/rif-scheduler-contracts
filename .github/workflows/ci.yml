@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  setup:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js 10.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: 10.x
+    - run: npm i
+
+  test:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+    - run: npm test
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+    - run: npm run lint
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+    - run: npm run coverage
+    # - name: Coveralls
+      # uses: coverallsapp/github-action@master
+      # with:
+        # github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slither Static Analysis
+        uses: luisfontes19/slither-static-analysis-action@v0.3.2
+        with:
+          slither-version: '0.6.13'
+          run-npm-install: false
+          high-threshold: 1
+          medium-threshold: 1
+          low-threshold: 3
+          optimization-threshold: 5
+          informative-threshold: 10
+          projectPath: "."
