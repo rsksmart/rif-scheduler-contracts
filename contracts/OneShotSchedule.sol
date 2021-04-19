@@ -74,14 +74,14 @@ contract OneShotSchedule is ERC677TransferReceiver {
     remainingSchedulings[requestor] = remainingSchedulings[requestor].add(1);
   }
 
-  function schedule(address to, bytes memory data, uint gas, uint executionTime) public payable {
+  function schedule(address to, bytes memory data, uint gas, uint executionTime) external payable {
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     _spend(msg.sender);
     transactionsScheduled.push(Metatransaction(msg.sender,to, data, gas, executionTime, msg.value, false));
     emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, to, data, gas, executionTime, msg.value);
   }
 
-  function getSchedule(uint index) public view returns(address, address, bytes memory, uint, uint, uint, bool) {
+  function getSchedule(uint index) external view returns(address, address, bytes memory, uint, uint, uint, bool) {
     Metatransaction memory metatransaction = transactionsScheduled[index];
     return (metatransaction.from, metatransaction.to, metatransaction.data, metatransaction.gas, metatransaction.timestamp, metatransaction.value, metatransaction.executed);
   }
