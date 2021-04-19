@@ -49,8 +49,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
   }
 
   function purchase(uint amount) external {
-    doPurchase(msg.sender, amount);
     require(token.transferFrom(msg.sender, address(this), _totalPrice(amount)), "Payment did't pass");
+    doPurchase(msg.sender, amount);
   }
 
   function tokenFallback(address from, uint amount, bytes calldata data) external returns(bool) {
