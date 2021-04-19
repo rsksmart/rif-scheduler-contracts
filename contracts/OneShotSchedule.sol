@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.0;
 import "@rsksmart/erc677/contracts/IERC677.sol";
+import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
-// import "@rsksmart/erc677/contracts/IERC677Receiver.sol";
 
-contract OneShotSchedule {
+contract OneShotSchedule is ERC677TransferReceiver {
   using SafeMath for uint;
   using SafeMath for uint64;
 
