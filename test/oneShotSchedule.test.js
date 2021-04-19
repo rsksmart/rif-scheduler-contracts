@@ -71,7 +71,7 @@ contract('SchedulePaymentsLock', (accounts) => {
     it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', async () => await this.testPurchaseWithValue(web3.utils.toBN(10)))
 
     it('should reject if not approved', 
-    async () => await assert.rejects( this.testPurchaseWithValue(web3.utils.toBN(1e15)), "Allowance Excedeed"))
+    () => assert.rejects( this.testPurchaseWithValue(web3.utils.toBN(1e15)), "Allowance Excedeed"))
 
   })
 
