@@ -1,5 +1,6 @@
 node_modules
 .secret
 build
-package-lock.json
 .vscode/slither-results.json
+coverage
+.DS_Store

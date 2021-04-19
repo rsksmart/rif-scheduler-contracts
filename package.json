@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx truffle test"
+    "test": "npx truffle test",
+    "coverage": "npx truffle run coverage",
+    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.test.js'",
+    "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.test.js'"
   },
   "author": "",
   "license": "ISC",
@@ -12,6 +15,9 @@
     "@openzeppelin/test-helpers": "^0.5.10",
     "@truffle/hdwallet-provider": "^1.2.6",
     "ganache-time-traveler": "^1.0.15",
+    "prettier": "^2.2.1",
+    "prettier-plugin-solidity": "*",
+    "solidity-coverage": "^0.7.16",
     "truffle": "^5.3.1"
   },
   "dependencies": {
