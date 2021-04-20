@@ -6,6 +6,7 @@ const assert = require('assert')
 const { hasUncaughtExceptionCaptureCallback } = require('process')
 const { time } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
+const { web3 } = require('@openzeppelin/test-helpers/src/setup')
 
 const schedulingPrice = web3.utils.toBN(15)
 const window = 10000
@@ -26,6 +27,8 @@ timeMachine.takeSnapshot().then((id) => {
 })
 
 contract('OneShotSchedule', (accounts) => {
+  before(() => web3.eth.sendTransaction({ from: accounts[7], to: accounts[0], value: '1000000000000000000' }))
+
   beforeEach(async () => {
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(accounts[0], web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF', web3.utils.toBN('18'))
