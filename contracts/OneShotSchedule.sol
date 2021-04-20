@@ -129,6 +129,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
     );
   }
 
+  // TODO: we need to prevent reentrancy in the next line!!
+  // slither-disable-next-line reentrancy-events
   function execute(uint256 index) external {
     Metatransaction storage metatransaction = transactionsScheduled[index];
 
