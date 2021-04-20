@@ -1,35 +1,45 @@
 const OneShotSchedule = artifacts.require('OneShotSchedule')
-const ERC677 = artifacts.require('ERC677')  // payment method
+const ERC677 = artifacts.require('ERC677') // payment method
 const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
 const { hasUncaughtExceptionCaptureCallback } = require('process')
-const { time } = require('@openzeppelin/test-helpers');
-const timeMachine = require('ganache-time-traveler');
+const { time } = require('@openzeppelin/test-helpers')
+const timeMachine = require('ganache-time-traveler')
+const { web3 } = require('@openzeppelin/test-helpers/src/setup')
 
 const schedulingPrice = web3.utils.toBN(15)
 const window = 10000
 const insideWindow = window - 1000
 const outisdeWindow = window + 1000
 
-const getMethodSig = method => web3.utils.sha3(method).slice(0, 10)
+const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
 const failData = getMethodSig('fail()')
 
-const solidityError = message => ({
-  message: `Returned error: VM Exception while processing transaction: revert ${message} -- Reason given: ${message}.`
+const solidityError = (message) => ({
+  message: `Returned error: VM Exception while processing transaction: revert ${message} -- Reason given: ${message}.`,
 })
 
-let initialSnapshot = null 
-timeMachine.takeSnapshot().then(id=>{ initialSnapshot = id})
+let initialSnapshot = null
+timeMachine.takeSnapshot().then((id) => {
+  initialSnapshot = id
+})
 
 contract('OneShotSchedule', (accounts) => {
+  before(() => web3.eth.sendTransaction({ from: accounts[7], to: accounts[0], value: '1000000000000000000' }))
+
   beforeEach(async () => {
     await timeMachine.revertToSnapshot(initialSnapshot)
-    this.token = await ERC677.new(accounts[0], web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF', web3.utils.toBN('18'));
+    this.token = await ERC677.new(accounts[0], web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF', web3.utils.toBN('18'))
     this.serviceProviderAccount = accounts[1]
-    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount, schedulingPrice, web3.utils.toBN(window))
-    this.counter = await Counter.new()
+    this.oneShotSchedule = await OneShotSchedule.new(
+      this.token.address,
+      this.serviceProviderAccount,
+      schedulingPrice,
+      web3.utils.toBN(window)
+    )
+    this.counter = await Counter.new(accounts[0])
   })
 
   describe('payments', () => {
@@ -40,43 +50,38 @@ contract('OneShotSchedule', (accounts) => {
         await this.oneShotSchedule.purchase(value)
         const scheduled = await this.oneShotSchedule.getRemainingSchedulings(accounts[0])
         const contractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
-        
+
         assert.strictEqual(scheduled.toString(10), value.toString(10), `Didn't schedule ${value}`)
-        assert.strictEqual(contractBalance.toString(10), value.mul(schedulingPrice).toString(10), "Balance mismatch")
+        assert.strictEqual(contractBalance.toString(10), value.mul(schedulingPrice).toString(10), 'Balance mismatch')
       }
 
       this.testERC677PurchaseWithValue = async (_schedulings, _totalToTransfer) => {
         const schedulings = web3.utils.toBN(_schedulings)
-        const totalToTransfer = web3.utils.toBN(_totalToTransfer);
-        const encodedData = web3.eth.abi.encodeParameter('uint256', schedulings.toString() );
+        const totalToTransfer = web3.utils.toBN(_totalToTransfer)
+        const encodedData = web3.eth.abi.encodeParameter('uint256', schedulings.toString())
         await this.token.transferAndCall(this.oneShotSchedule.address, totalToTransfer, encodedData)
         const scheduled = await this.oneShotSchedule.getRemainingSchedulings(accounts[0])
         const contractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
-        
-        assert.strictEqual(scheduled.toString(10), schedulings.toString(10), `Didn't schedule ${schedulings.toString(10)}`)
-        assert.strictEqual(contractBalance.toString(10), (totalToTransfer).toString(), "Balance mismatch")
-      }
 
+        assert.strictEqual(scheduled.toString(10), schedulings.toString(10), `Didn't schedule ${schedulings.toString(10)}`)
+        assert.strictEqual(contractBalance.toString(10), totalToTransfer.toString(), 'Balance mismatch')
+      }
     })
 
-    it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', 
-      () => this.testERC677PurchaseWithValue(1, 1 * schedulingPrice))
-    it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', 
-      () =>this.testERC677PurchaseWithValue(10, 10 * schedulingPrice))
+    it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', () => this.testERC677PurchaseWithValue(1, 1 * schedulingPrice))
+    it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', () => this.testERC677PurchaseWithValue(10, 10 * schedulingPrice))
 
-    it("should reject if payment doesn't match total amount'", 
-      () => assert.rejects(this.testERC677PurchaseWithValue(10, schedulingPrice), "Transferred amount doens't match total purchase"))
+    it("should reject if payment doesn't match total amount'", () =>
+      assert.rejects(this.testERC677PurchaseWithValue(10, schedulingPrice), "Transferred amount doens't match total purchase"))
 
     it('should receive RIF tokens to purchase 1 scheduled - ERC20 way', () => this.testPurchaseWithValue(1))
     it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', () => this.testPurchaseWithValue(web3.utils.toBN(10)))
 
-    it('should reject if not approved', 
-    () => assert.rejects( this.testPurchaseWithValue(web3.utils.toBN(1e15)), "Allowance Excedeed"))
-
+    it('should reject if not approved', () => assert.rejects(this.testPurchaseWithValue(web3.utils.toBN(1e15)), 'Allowance Excedeed'))
   })
 
   describe('scheduling', () => {
-    beforeEach( () => {
+    beforeEach(() => {
       this.testListingWithValue = async (value, timestamp) => {
         const to = this.counter.address
         const gas = web3.utils.toBN(await this.counter.inc.estimateGas())
@@ -99,26 +104,23 @@ contract('OneShotSchedule', (accounts) => {
     })
 
     it('schedule a new metatransaction', async () => {
-      const nearFuture = await time.latest() + 100
-      return this.testListingWithValue(web3.utils.toBN(0),nearFuture)
+      const nearFuture = (await time.latest()) + 100
+      return this.testListingWithValue(web3.utils.toBN(0), nearFuture)
     })
 
     it('schedule a new metatransaction with value', async () => {
-      const nearFuture = await time.latest() + 100
-      return this.testListingWithValue(web3.utils.toBN(1e15),nearFuture)
+      const nearFuture = (await time.latest()) + 100
+      return this.testListingWithValue(web3.utils.toBN(1e15), nearFuture)
     })
 
     it('cannot schedule in the past', async () => {
-      const nearPast = await time.latest() - 100
-      return await assert.rejects(
-        this.testListingWithValue(web3.utils.toBN(1e15),1),
-        solidityError('Cannot schedule it in the past')
-      )
+      const nearPast = (await time.latest()) - 100
+      return await assert.rejects(this.testListingWithValue(web3.utils.toBN(1e15), 1), solidityError('Cannot schedule it in the past'))
     })
   })
 
-  describe('execution', async() => {
-    beforeEach(async() => { 
+  describe('execution', async () => {
+    beforeEach(async () => {
       await this.token.approve(this.oneShotSchedule.address, web3.utils.toBN(1000))
 
       this.addAndExecuteWithTimes = async (value, scheduleTimestamp, executionTimestamp) => {
@@ -130,15 +132,15 @@ contract('OneShotSchedule', (accounts) => {
         await time.advanceBlock()
         await this.oneShotSchedule.execute(0)
       }
-      
+
       this.testExecutionWithValue = async (value) => {
         await time.advanceBlock()
         const timestamp = await time.latest()
         await this.addAndExecuteWithTimes(value, timestamp.add(web3.utils.toBN(insideWindow)), timestamp.add(web3.utils.toBN(insideWindow))) //near future insid the window
 
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then(meta => meta[5]), 'Not ok')
-        assert.strictEqual(await this.counter.count().then(r => r.toString()), '1', 'Counter difference')
-        assert.strictEqual(await web3.eth.getBalance(this.counter.address).then(r => r.toString()), value.toString(), 'wrong balance')
+        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[5]), 'Not ok')
+        assert.strictEqual(await this.counter.count().then((r) => r.toString()), '1', 'Counter difference')
+        assert.strictEqual(await web3.eth.getBalance(this.counter.address).then((r) => r.toString()), value.toString(), 'wrong balance')
       }
     })
 
@@ -147,28 +149,29 @@ contract('OneShotSchedule', (accounts) => {
 
     it('cannot execute twice', async () => {
       await this.testExecutionWithValue(web3.utils.toBN(0))
-      await assert.rejects(
-        this.oneShotSchedule.execute(0),
-        solidityError('Already executed')
-      )
+      await assert.rejects(this.oneShotSchedule.execute(0), solidityError('Already executed'))
     })
 
     it('cannot execute before timestamp - window', async () => {
       const timestamp = await time.latest()
       await assert.rejects(
-        this.addAndExecuteWithTimes(web3.utils.toBN(0), 
-          timestamp.add(web3.utils.toBN(60*60*24)),    // scheduled for tomorrow
-          timestamp.add(web3.utils.toBN(60*60*24 - outisdeWindow))), // before window
+        this.addAndExecuteWithTimes(
+          web3.utils.toBN(0),
+          timestamp.add(web3.utils.toBN(60 * 60 * 24)), // scheduled for tomorrow
+          timestamp.add(web3.utils.toBN(60 * 60 * 24 - outisdeWindow))
+        ), // before window
         solidityError('Too soon')
       )
     })
 
-    it('cannot execute after timestamp + window', async() => {
+    it('cannot execute after timestamp + window', async () => {
       const timestamp = await time.latest()
       await assert.rejects(
-       this.addAndExecuteWithTimes(web3.utils.toBN(0), 
-        timestamp.add(web3.utils.toBN(60*60*24)),    // scheduled for tomorrow
-        timestamp.add(web3.utils.toBN(60*60*24 + outisdeWindow))), // after window
+        this.addAndExecuteWithTimes(
+          web3.utils.toBN(0),
+          timestamp.add(web3.utils.toBN(60 * 60 * 24)), // scheduled for tomorrow
+          timestamp.add(web3.utils.toBN(60 * 60 * 24 + outisdeWindow))
+        ), // after window
         solidityError('Too late')
       )
     })
@@ -181,10 +184,10 @@ contract('OneShotSchedule', (accounts) => {
         await this.oneShotSchedule.purchase(1)
         await this.oneShotSchedule.schedule(to, failData, gas, timestamp)
         const tx = await this.oneShotSchedule.execute(0)
-        const log = tx.logs.find(l => l.event === 'MetatransactionExecuted')
+        const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
         assert.ok(!log.args.success)
         assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then(meta => meta[5]))
+        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[5]))
       })
 
       it('due to insufficient gas in called contract', async () => {
@@ -194,9 +197,9 @@ contract('OneShotSchedule', (accounts) => {
         await this.oneShotSchedule.purchase(1)
         await this.oneShotSchedule.schedule(to, failData, gas, timestamp)
         const tx = await this.oneShotSchedule.execute(0)
-        const log = tx.logs.find(l => l.event === 'MetatransactionExecuted')
+        const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
         assert.ok(!log.args.success)
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then(meta => meta[5]))
+        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[5]))
       })
     })
   })
