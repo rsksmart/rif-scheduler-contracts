@@ -49,8 +49,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   event MetatransactionExecuted(uint256 indexed index, bool succes, bytes result);
 
-  modifier onlyProvider(){
-    require(address(msg.sender) == address(providerAccount), "Not authorized");
+  modifier onlyProvider() {
+    require(address(msg.sender) == providerAccount, "Not authorized");
     _;
   }
 
@@ -61,10 +61,10 @@ contract OneShotSchedule is ERC677TransferReceiver {
     providerAccount = _providerAccount;
   }
 
-    function addPlan(uint256 price, uint256 window) external onlyProvider {
-    plans[amountOfPlans] = Plan(price, window, true);
-    amountOfPlans = amountOfPlans.add(1);
+    function addPlan(uint256 price, uint256 window) external onlyProvider returns(uint256) {
+    plans.push(Plan(price, window, true));
     emit PlanAdded(plans.length -1, price, window);
+
   }
 
   function getPlan(uint256 index) view public returns(uint256 price, uint256 window, bool active){
