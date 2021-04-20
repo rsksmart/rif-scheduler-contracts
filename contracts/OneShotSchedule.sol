@@ -113,7 +113,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   function _spend(address requestor, uint256 plan) private {
     require(remainingSchedulings[requestor][plan] > 0, 'No balance available');
-    remainingSchedulings[plan][requestor] = remainingSchedulings[plan][requestor].sub(1);
+    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan].sub(1);
   }
 
   function _refund(address requestor, uint256 plan) private {
