@@ -8,10 +8,8 @@ const { time } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
 const { web3 } = require('@openzeppelin/test-helpers/src/setup')
 
-const schedulingPrice = web3.utils.toBN(15)
-const window = 10000
-const insideWindow = window - 1000
-const outisdeWindow = window + 1000
+const insideWindow = window => window.sub(1000)
+const outisdeWindow = window => window.add(1000)
 
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
@@ -21,6 +19,10 @@ const solidityError = (message) => ({
   message: `Returned error: VM Exception while processing transaction: revert ${message} -- Reason given: ${message}.`,
 })
 
+const plans = [
+  {price:web3.utils.toBN(15), window:web3.utils.toBN(10000)},
+  {price:web3.utils.toBN(4), window:web3.utils.toBN(300)},
+]
 let initialSnapshot = null
 timeMachine.takeSnapshot().then((id) => {
   initialSnapshot = id
@@ -33,13 +35,25 @@ contract('OneShotSchedule', (accounts) => {
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(accounts[0], web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF', web3.utils.toBN('18'))
     this.serviceProviderAccount = accounts[1]
-    this.oneShotSchedule = await OneShotSchedule.new(
-      this.token.address,
-      this.serviceProviderAccount,
-      schedulingPrice,
-      web3.utils.toBN(window)
-    )
-    this.counter = await Counter.new(accounts[0])
+    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount)
+    this.counter = await Counter.new()
+  })
+
+  describe('plans', () => {
+    beforeEach(async () => {
+      this.testAddPlan = async (price, window) => {
+        console.log(`price ${price}, window ${ window}`)
+        await this.oneShotSchedule.addPlan(price, window)
+        console.log(1)
+        const plan = await this.oneShotSchedule.getPlan(0)
+        console.log(plan)
+        assert.strictEqual(plan.price.toString(10), price.toString(10), `Didn't save plan's price  ${price}`)
+        assert.strictEqual(plan.window.toString(10), window.toString(10), `Didn't save plan's window ${window}`)
+        assert.strictEqual(plan.active, true, `Plan is not active`)
+      }
+    })
+
+    it('should add a plan', () => this.testAddPlan(plans[0].price, plans[0].window))
   })
 
   describe('payments', () => {

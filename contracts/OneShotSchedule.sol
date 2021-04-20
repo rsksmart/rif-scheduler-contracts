@@ -6,15 +6,23 @@ import '@openzeppelin/contracts/math/SafeMath.sol';
 
 contract OneShotSchedule is ERC677TransferReceiver {
   using SafeMath for uint256;
-  uint256 window;
   IERC677 token;
   address providerAccount;
-  uint256 price;
 
-  mapping(address => uint256) remainingSchedulings;
+  struct Plan {
+    uint256 schegulingPrice;
+    uint256 window;
+    bool active;
+  }
 
+  Plan[] plans;
+  uint256 amountOfPlans = 0;
+
+  mapping(uint256 => mapping(address => uint)) remainingSchedulings;
+  
   struct Metatransaction {
     address from;
+    uint256 plan;
     address to;
     bytes data;
     uint256 gas;
@@ -25,45 +33,64 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   Metatransaction[] private transactionsScheduled;
 
+  event PlanAdded(uint256 indexed index,uint256 price, uint256 window);
+  event PlanCancelled(uint256 indexed index);
   event SchedulingsPurchased(address indexed from, uint256 amount);
   event MetatransactionAdded(
     uint256 indexed index,
     address indexed from,
-    address indexed to,
+    uint256 indexed plan,
+    indexed to,
     bytes data,
     uint256 gas,
     uint256 timestamp,
     uint256 value
   );
+
   event MetatransactionExecuted(uint256 indexed index, bool succes, bytes result);
 
-  constructor(
-    IERC677 _rifToken,
-    address _providerAccount,
-    uint256 _price,
-    uint256 _window
-  ) public {
+  modifier onlyProvider(){
+    require(address(msg.sender) == address(providerAccount), "Not authorized");
+    _;
+  }
+
+  constructor(IERC677 _rifToken, address _providerAccount) public {
     require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
     require(address(_rifToken) != address(0x0), "Provider's address cannot be 0x0");
-    window = _window;
     token = _rifToken;
-    price = _price;
-    window = _window;
     providerAccount = _providerAccount;
   }
 
-  function _totalPrice(uint256 amount) private view returns (uint256) {
-    return amount.mul(price);
+    function addPlan(uint256 price, uint256 window) external onlyProvider {
+    plans[amountOfPlans] = Plan(price, window, true);
+    amountOfPlans = amountOfPlans.add(1);
+    emit PlanAdded(plans.length -1, price, window);
   }
 
-  function doPurchase(address from, uint256 schedulingAmount) private {
+  function getPlan(uint256 index) view public returns(uint256 price, uint256 window, bool active){
+    price = plans[index].schegulingPrice;
+    window = plans[index].window;
+    active = plans[index].active;
+  }
+
+  function cancelPlan(uint256 plan) external onlyProvider {
+    require(plans[plan].active, "The plan is already inactive");
+    plans[plan].active = false;
+    emit PlanCancelled(plan);
+  }
+
+  function _totalPrice(uint256 plan, uint256 amount) private view returns (uint256){
+    return amount.mul(plans[plan].schegulingPrice);
+  }
+
+  function doPurchase(address from, uint256 plan, uint256 schedulingAmount) private {
     remainingSchedulings[from] = remainingSchedulings[from].add(schedulingAmount);
     emit SchedulingsPurchased(from, schedulingAmount);
   }
 
-  function purchase(uint256 amount) external {
+  function purchase(uint256 plan,uint256 amount) external {
     doPurchase(msg.sender, amount);
-    require(token.transferFrom(msg.sender, address(this), _totalPrice(amount)), "Payment did't pass");
+    require(token.transferFrom(msg.sender, address(this), _totalPrice(plan, amount)), "Payment did't pass");
   }
 
   function tokenFallback(
@@ -72,27 +99,30 @@ contract OneShotSchedule is ERC677TransferReceiver {
     bytes calldata data
   ) external returns (bool) {
     require(address(token) == address(msg.sender), 'Bad token');
-    uint256 schedulingAmount = abi.decode(data, (uint256));
-    require(amount == _totalPrice(schedulingAmount), "Transferred amount doesn't match total purchase");
-    doPurchase(from, schedulingAmount);
+    uint256 plan;
+    uint256 schedulingAmount;
+    (plan, schedulingAmount) = schedulingAmount = abi.decode(data, (uint256,uint256));
+    require(amount == _totalPrice(plan, schedulingAmount), "Transferred amount doesn't match total purchase");
+    doPurchase(from, plan, schedulingAmount);
     return true;
   }
 
-  function getRemainingSchedulings(address requestor) external view returns (uint256) {
-    return remainingSchedulings[requestor];
+  function getRemainingSchedulings(address requestor, uint256 plan)) external view returns (uint256) {
+    return remainingSchedulings[plan][requestor];
   }
 
-  function _spend(address requestor) private {
-    require(remainingSchedulings[requestor] > 0, 'No balance available');
-    remainingSchedulings[requestor] = remainingSchedulings[requestor].sub(1);
+  function _spend(address requestor, uint256 plan) private {
+    require(remainingSchedulings[plan][requestor] > 0, 'No balance available');
+    remainingSchedulings[plan][requestor] = remainingSchedulings[plan][requestor].sub(1);
   }
 
-  function _refund(address requestor) private {
-    remainingSchedulings[requestor] = remainingSchedulings[requestor].add(1);
+  function _refund(address requestor, uint256 plan) private {
+    remainingSchedulings[plan][requestor] = remainingSchedulings[plan][requestor].add(1);
   }
 
   function schedule(
     address to,
+    uint256 plan, 
     bytes calldata data,
     uint256 gas,
     uint256 executionTime
@@ -100,8 +130,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     _spend(msg.sender);
-    transactionsScheduled.push(Metatransaction(msg.sender, to, data, gas, executionTime, msg.value, false));
-    emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, to, data, gas, executionTime, msg.value);
+    transactionsScheduled.push(Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, false));
+    emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
 
   function getSchedule(uint256 index)
@@ -109,6 +139,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     view
     returns (
       address,
+      uint256,
       address,
       bytes memory,
       uint256,
@@ -120,6 +151,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     Metatransaction memory metatransaction = transactionsScheduled[index];
     return (
       metatransaction.from,
+      metatransaction.plan,
       metatransaction.to,
       metatransaction.data,
       metatransaction.gas,
@@ -141,9 +173,10 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // - penalize the service provider
 
     // slither-disable-next-line timestamp
-    require(metatransaction.timestamp.sub(window) < block.timestamp, 'Too soon');
+    require(metatransaction.timestamp.sub(plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
     // slither-disable-next-line timestamp
-    require(metatransaction.timestamp.add(window) > block.timestamp, 'Too late');
+    require(metatransaction.timestamp.add(plans[metatransaction.plan].window) >  block.timestamp, 'Too late');
+
 
     // We can use gasleft() here to charge the consumer for the gas
     // A contract may hold user's gas and charge it after executing
