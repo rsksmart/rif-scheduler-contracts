@@ -18,7 +18,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
   Plan[] plans;
   uint256 amountOfPlans = 0;
 
-  mapping(uint256 => mapping(address => uint)) remainingSchedulings;
+  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
   
   struct Metatransaction {
     address from;
@@ -35,12 +35,12 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   event PlanAdded(uint256 indexed index,uint256 price, uint256 window);
   event PlanCancelled(uint256 indexed index);
-  event SchedulingsPurchased(address indexed from, uint256 amount);
+  event SchedulingsPurchased(address indexed from, uint256 plan, uint256 amount);
   event MetatransactionAdded(
     uint256 indexed index,
     address indexed from,
     uint256 indexed plan,
-    indexed to,
+    address to,
     bytes data,
     uint256 gas,
     uint256 timestamp,
@@ -84,12 +84,12 @@ contract OneShotSchedule is ERC677TransferReceiver {
   }
 
   function doPurchase(address from, uint256 plan, uint256 schedulingAmount) private {
-    remainingSchedulings[from] = remainingSchedulings[from].add(schedulingAmount);
-    emit SchedulingsPurchased(from, schedulingAmount);
+    remainingSchedulings[from][plan] = remainingSchedulings[from][plan].add(schedulingAmount);
+    emit SchedulingsPurchased(from, plan, schedulingAmount);
   }
 
   function purchase(uint256 plan,uint256 amount) external {
-    doPurchase(msg.sender, amount);
+    doPurchase(msg.sender, plan, amount);
     require(token.transferFrom(msg.sender, address(this), _totalPrice(plan, amount)), "Payment did't pass");
   }
 
@@ -101,23 +101,23 @@ contract OneShotSchedule is ERC677TransferReceiver {
     require(address(token) == address(msg.sender), 'Bad token');
     uint256 plan;
     uint256 schedulingAmount;
-    (plan, schedulingAmount) = schedulingAmount = abi.decode(data, (uint256,uint256));
+    (plan, schedulingAmount) = abi.decode(data, (uint256,uint256));
     require(amount == _totalPrice(plan, schedulingAmount), "Transferred amount doesn't match total purchase");
     doPurchase(from, plan, schedulingAmount);
     return true;
   }
 
-  function getRemainingSchedulings(address requestor, uint256 plan)) external view returns (uint256) {
-    return remainingSchedulings[plan][requestor];
+  function getRemainingSchedulings(address requestor, uint256 plan) external view returns (uint256) {
+    return remainingSchedulings[requestor][plan];
   }
 
   function _spend(address requestor, uint256 plan) private {
-    require(remainingSchedulings[plan][requestor] > 0, 'No balance available');
+    require(remainingSchedulings[requestor][plan] > 0, 'No balance available');
     remainingSchedulings[plan][requestor] = remainingSchedulings[plan][requestor].sub(1);
   }
 
   function _refund(address requestor, uint256 plan) private {
-    remainingSchedulings[plan][requestor] = remainingSchedulings[plan][requestor].add(1);
+    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan].add(1);
   }
 
   function schedule(
@@ -129,7 +129,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
   ) external payable {
     // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
-    _spend(msg.sender);
+    _spend(msg.sender, plan);
     transactionsScheduled.push(Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, false));
     emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
