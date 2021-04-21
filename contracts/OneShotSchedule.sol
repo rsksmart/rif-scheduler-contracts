@@ -121,8 +121,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
   }
 
   function schedule(
-    address to,
     uint256 plan, 
+    address to,
     bytes calldata data,
     uint256 gas,
     uint256 executionTime
