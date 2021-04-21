@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
-import '@rsksmart/erc677/contracts/ERC677TransferReceiver.sol';
-import '@openzeppelin/contracts/math/SafeMath.sol';
+import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
-contract OneShotSchedule is ERC677TransferReceiver {
+contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   using SafeMath for uint256;
   IERC677 token;
   address providerAccount;
@@ -16,7 +17,6 @@ contract OneShotSchedule is ERC677TransferReceiver {
   }
 
   Plan[] plans;
-  uint256 amountOfPlans = 0;
 
   mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
 
@@ -54,14 +54,14 @@ contract OneShotSchedule is ERC677TransferReceiver {
     _;
   }
 
-  constructor(IERC677 _rifToken, address _providerAccount) public {
+  constructor(IERC677 _rifToken, address _providerAccount) {
     require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
     require(address(_rifToken) != address(0x0), "Provider's address cannot be 0x0");
     token = _rifToken;
     providerAccount = _providerAccount;
   }
 
-  function addPlan(uint256 price, uint256 window) external onlyProvider returns (uint256) {
+  function addPlan(uint256 price, uint256 window) external onlyProvider {
     plans.push(Plan(price, window, true));
     emit PlanAdded(plans.length - 1, price, window);
   }
@@ -104,11 +104,11 @@ contract OneShotSchedule is ERC677TransferReceiver {
     require(token.transferFrom(msg.sender, address(this), _totalPrice(plan, amount)), "Payment did't pass");
   }
 
-  function tokenFallback(
+  function tokenFallback (
     address from,
     uint256 amount,
     bytes calldata data
-  ) external returns (bool) {
+  ) external override returns (bool) {
     require(address(token) == address(msg.sender), 'Bad token');
     uint256 plan;
     uint256 schedulingAmount;
@@ -174,7 +174,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   // TODO: we need to prevent reentrancy in the next line!!
   // slither-disable-next-line reentrancy-events
-  function execute(uint256 index) external {
+  function execute(uint256 index) external nonReentrant {
     Metatransaction storage metatransaction = transactionsScheduled[index];
 
     require(!metatransaction.executed, 'Already executed');
@@ -198,8 +198,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // to list a valid transaction
 
     // slither-disable-next-line low-level-calls
-    (bool success, bytes memory result) =
-      metatransaction.to.call.gas(metatransaction.gas).value(metatransaction.value)(metatransaction.data);
+
+    (bool success, bytes memory result) = metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
 
     // The difference when calling gasleft() again is (aprox.) the gas used
     // in the call
