@@ -48,6 +48,9 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   );
 
   event MetatransactionExecuted(uint256 indexed index, bool succes, bytes result);
+  event MetatransactionExecutedFailed(uint256 indexed index, bool succes, string reason);
+  event MetatransactionExecutedReverted(uint256 indexed index, bool succes, bytes reason);
+  
 
   modifier onlyProvider() {
     require(address(msg.sender) == providerAccount, 'Not authorized');
@@ -197,16 +200,15 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // Now failing transactions are forwarded. Is responsability of the requestor
     // to list a valid transaction
 
-    // slither-disable-next-line low-level-calls
+    // slither-disable-next-line
+  (bool success, bytes memory result) = metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
 
-    (bool success, bytes memory result) = metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
-
+    emit MetatransactionExecuted(index, success, result);
     // The difference when calling gasleft() again is (aprox.) the gas used
     // in the call
 
     // After executing we do the payout to the service provider:
     // - return the gas used
     // - send the tokens paid for the service
-    emit MetatransactionExecuted(index, success, result);
   }
 }

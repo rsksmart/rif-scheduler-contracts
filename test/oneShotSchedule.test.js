@@ -40,6 +40,7 @@ contract('OneShotSchedule', (accounts) => {
 
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount)
     this.counter = await Counter.new()
+    this.gas = toBN(await this.counter.inc.estimateGas())
   })
 
   describe('plans', () => {
@@ -126,7 +127,7 @@ contract('OneShotSchedule', (accounts) => {
       await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProviderAccount })
       this.testScheduleWithValue = async (plan, value, timestamp) => {
         const to = this.counter.address
-        const gas = toBN(await this.counter.inc.estimateGas())
+        const gas = this.gas
         await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.schedulingRequestor })
         await this.oneShotSchedule.purchase(plan, 1, { from: this.schedulingRequestor })
         await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.schedulingRequestor, value })
@@ -165,17 +166,17 @@ contract('OneShotSchedule', (accounts) => {
   describe('execution', async () => {
     beforeEach(async () => {
       await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProviderAccount })
-      this.testScheduleWithValue = async (plan, value, timestamp) => {
+      this.testScheduleWithValue = async (plan, data, value, timestamp) => {
         const to = this.counter.address
         const from = this.schedulingRequestor
-        const gas = toBN(await this.counter.inc.estimateGas())
+        const gas = this.gas
         await this.token.approve(this.oneShotSchedule.address, plans[plan].price, { from })
         await this.oneShotSchedule.purchase(plan, toBN(1), { from })
-        return await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from, value })
+        return await this.oneShotSchedule.schedule(plan, to, data, gas, timestamp, { from, value })
       }
 
-      this.addAndExecuteWithTimes = async (value, scheduleTimestamp, executionTimestamp) => {
-        await this.testScheduleWithValue(0, value, scheduleTimestamp)
+      this.addAndExecuteWithTimes = async (data, value, scheduleTimestamp, executionTimestamp) => {
+        await this.testScheduleWithValue(0, data, value, scheduleTimestamp)
         await time.increaseTo(executionTimestamp)
         await time.advanceBlock()
         return await this.oneShotSchedule.execute(0)
@@ -185,7 +186,7 @@ contract('OneShotSchedule', (accounts) => {
         await time.advanceBlock()
         const timestamp = await time.latest()
         const insideWindowTime = timestamp.add(insideWindow(plans[0].window))
-        await this.addAndExecuteWithTimes(value, insideWindowTime, insideWindowTime) //near future inside the window
+        await this.addAndExecuteWithTimes(incData,value, insideWindowTime, insideWindowTime) //near future inside the window
 
         assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]), 'Not ok')
         assert.strictEqual(await this.counter.count().then((r) => r.toString()), '1', 'Counter difference')
@@ -205,9 +206,10 @@ contract('OneShotSchedule', (accounts) => {
       const timestamp = await time.latest()
       await assert.rejects(
         this.addAndExecuteWithTimes(
+          incData,
           toBN(0),
           timestamp.add(toBN(60 * 60 * 24)), // scheduled for tomorrow
-          timestamp.add(toBN(60 * 60 * 24 - outsideWindow(plans[0].window)))
+          timestamp.add(toBN(60 * 60 * 24).sub(outsideWindow(plans[0].window)))
         ), // before window
         solidityError('Too soon')
       )
@@ -217,42 +219,43 @@ contract('OneShotSchedule', (accounts) => {
       const timestamp = await time.latest()
       await assert.rejects(
         this.addAndExecuteWithTimes(
+          incData,
           toBN(0),
           timestamp.add(toBN(60 * 60 * 24)), // scheduled for tomorrow
-          timestamp.add(toBN(60 * 60 * 24 + outsideWindow(plans[0].window)))
+          timestamp.add(toBN(60 * 60 * 24).add(outsideWindow(plans[0].window)))
         ), // after window
         solidityError('Too late')
       )
     })
 
     describe('failing metatransactions', () => {
-      // it('due to revert in called contract', async () => {
-      //   const to = this.counter.address
-      //   const gas = toBN(await this.counter.fail.estimateGas())
-      //   const timestamp = await time.latest()
-      //   await this.oneShotSchedule.purchase(toBN(0), toBN(1), { from: this.schedulingRequestor })
-      //   await this.oneShotSchedule.schedule(0, to, failData, gas, timestamp, { from: this.schedulingRequestor })
-      //   const receipt = await this.oneShotSchedule.execute(0)
-      //   expectEvent(receipt, 'MetatransactionExecuted', {
-      //     success: false,
-      //     result: 'Boom',
-      //   })
-
-      //   assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[5]))
-      // })
+      it('due to revert in called contract', async () => {
+        const timestamp = await time.latest()
+        const tx = await this.addAndExecuteWithTimes(
+          failData,
+          toBN(0),
+          timestamp.add(toBN(60 * 60 * 24)), // scheduled for tomorrow
+          timestamp.add(toBN(60 * 60 * 24).add(insideWindow(plans[0].window)))
+        )
+        const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
+        assert.ok(!log.args.success)
+        assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
+        assert.ok(await this.oneShotSchedule.getSchedule(0).then(meta => meta[7]))
+      })
 
       it('due to insufficient gas in called contract', async () => {
         const to = this.counter.address
         const gas = toBN(10)
         const timestamp = await time.latest()
+        const timestampInsideWindow = timestamp.add(insideWindow(plans[0].window))
         const from = this.schedulingRequestor
         await this.token.approve(this.oneShotSchedule.address, plans[0].price, { from })
         await this.oneShotSchedule.purchase(toBN(0), toBN(1), { from })
-        await this.oneShotSchedule.schedule(0, to, failData, gas, timestamp, { from })
+        await this.oneShotSchedule.schedule(0, to, failData, gas, timestampInsideWindow, { from })
         const tx = await this.oneShotSchedule.execute(0)
         const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
         assert.ok(!log.args.success)
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[5]))
+        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]))
       })
     })
   })
