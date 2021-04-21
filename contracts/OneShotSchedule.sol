@@ -19,7 +19,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
   uint256 amountOfPlans = 0;
 
   mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
-  
+
   struct Metatransaction {
     address from;
     uint256 plan;
@@ -33,7 +33,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   Metatransaction[] private transactionsScheduled;
 
-  event PlanAdded(uint256 indexed index,uint256 price, uint256 window);
+  event PlanAdded(uint256 indexed index, uint256 price, uint256 window);
   event PlanCancelled(uint256 indexed index);
   event SchedulingsPurchased(address indexed from, uint256 plan, uint256 amount);
   event MetatransactionAdded(
@@ -50,7 +50,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
   event MetatransactionExecuted(uint256 indexed index, bool succes, bytes result);
 
   modifier onlyProvider() {
-    require(address(msg.sender) == providerAccount, "Not authorized");
+    require(address(msg.sender) == providerAccount, 'Not authorized');
     _;
   }
 
@@ -61,34 +61,45 @@ contract OneShotSchedule is ERC677TransferReceiver {
     providerAccount = _providerAccount;
   }
 
-    function addPlan(uint256 price, uint256 window) external onlyProvider returns(uint256) {
+  function addPlan(uint256 price, uint256 window) external onlyProvider returns (uint256) {
     plans.push(Plan(price, window, true));
-    emit PlanAdded(plans.length -1, price, window);
-
+    emit PlanAdded(plans.length - 1, price, window);
   }
 
-  function getPlan(uint256 index) view public returns(uint256 price, uint256 window, bool active){
+  function getPlan(uint256 index)
+    public
+    view
+    returns (
+      uint256 price,
+      uint256 window,
+      bool active
+    )
+  {
     price = plans[index].schegulingPrice;
     window = plans[index].window;
     active = plans[index].active;
   }
 
   function cancelPlan(uint256 plan) external onlyProvider {
-    require(plans[plan].active, "The plan is already inactive");
+    require(plans[plan].active, 'The plan is already inactive');
     plans[plan].active = false;
     emit PlanCancelled(plan);
   }
 
-  function _totalPrice(uint256 plan, uint256 amount) private view returns (uint256){
+  function _totalPrice(uint256 plan, uint256 amount) private view returns (uint256) {
     return amount.mul(plans[plan].schegulingPrice);
   }
 
-  function doPurchase(address from, uint256 plan, uint256 schedulingAmount) private {
+  function doPurchase(
+    address from,
+    uint256 plan,
+    uint256 schedulingAmount
+  ) private {
     remainingSchedulings[from][plan] = remainingSchedulings[from][plan].add(schedulingAmount);
     emit SchedulingsPurchased(from, plan, schedulingAmount);
   }
 
-  function purchase(uint256 plan,uint256 amount) external {
+  function purchase(uint256 plan, uint256 amount) external {
     doPurchase(msg.sender, plan, amount);
     require(token.transferFrom(msg.sender, address(this), _totalPrice(plan, amount)), "Payment did't pass");
   }
@@ -101,7 +112,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     require(address(token) == address(msg.sender), 'Bad token');
     uint256 plan;
     uint256 schedulingAmount;
-    (plan, schedulingAmount) = abi.decode(data, (uint256,uint256));
+    (plan, schedulingAmount) = abi.decode(data, (uint256, uint256));
     require(amount == _totalPrice(plan, schedulingAmount), "Transferred amount doesn't match total purchase");
     doPurchase(from, plan, schedulingAmount);
     return true;
@@ -121,7 +132,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
   }
 
   function schedule(
-    uint256 plan, 
+    uint256 plan,
     address to,
     bytes calldata data,
     uint256 gas,
@@ -175,8 +186,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // slither-disable-next-line timestamp
     require(metatransaction.timestamp.sub(plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
     // slither-disable-next-line timestamp
-    require(metatransaction.timestamp.add(plans[metatransaction.plan].window) >  block.timestamp, 'Too late');
-
+    require(metatransaction.timestamp.add(plans[metatransaction.plan].window) > block.timestamp, 'Too late');
 
     // We can use gasleft() here to charge the consumer for the gas
     // A contract may hold user's gas and charge it after executing
