@@ -2,11 +2,9 @@
 pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
-import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
-  using SafeMath for uint256;
   IERC677 token;
   address providerAccount;
 
@@ -50,7 +48,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   event MetatransactionExecuted(uint256 indexed index, bool succes, bytes result);
   event MetatransactionExecutedFailed(uint256 indexed index, bool succes, string reason);
   event MetatransactionExecutedReverted(uint256 indexed index, bool succes, bytes reason);
-  
 
   modifier onlyProvider() {
     require(address(msg.sender) == providerAccount, 'Not authorized');
@@ -70,7 +67,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   }
 
   function getPlan(uint256 index)
-    public
+    external
     view
     returns (
       uint256 price,
@@ -90,7 +87,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   }
 
   function _totalPrice(uint256 plan, uint256 amount) private view returns (uint256) {
-    return amount.mul(plans[plan].schegulingPrice);
+    return amount * plans[plan].schegulingPrice;
   }
 
   function doPurchase(
@@ -98,7 +95,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 plan,
     uint256 schedulingAmount
   ) private {
-    remainingSchedulings[from][plan] = remainingSchedulings[from][plan].add(schedulingAmount);
+    remainingSchedulings[from][plan] = remainingSchedulings[from][plan] + schedulingAmount;
     emit SchedulingsPurchased(from, plan, schedulingAmount);
   }
 
@@ -107,7 +104,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     require(token.transferFrom(msg.sender, address(this), _totalPrice(plan, amount)), "Payment did't pass");
   }
 
-  function tokenFallback (
+  function tokenFallback(
     address from,
     uint256 amount,
     bytes calldata data
@@ -127,11 +124,11 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
 
   function _spend(address requestor, uint256 plan) private {
     require(remainingSchedulings[requestor][plan] > 0, 'No balance available');
-    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan].sub(1);
+    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] - 1;
   }
 
   function _refund(address requestor, uint256 plan) private {
-    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan].add(1);
+    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] + 1;
   }
 
   function schedule(
@@ -175,8 +172,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     );
   }
 
-  // TODO: we need to prevent reentrancy in the next line!!
-  // slither-disable-next-line reentrancy-events
+  // slither-disable-next-line low-level-calls
   function execute(uint256 index) external nonReentrant {
     Metatransaction storage metatransaction = transactionsScheduled[index];
 
@@ -187,9 +183,9 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // - penalize the service provider
 
     // slither-disable-next-line timestamp
-    require(metatransaction.timestamp.sub(plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
+    require(metatransaction.timestamp - (plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
     // slither-disable-next-line timestamp
-    require(metatransaction.timestamp.add(plans[metatransaction.plan].window) > block.timestamp, 'Too late');
+    require(metatransaction.timestamp + (plans[metatransaction.plan].window) > block.timestamp, 'Too late');
 
     // We can use gasleft() here to charge the consumer for the gas
     // A contract may hold user's gas and charge it after executing
@@ -200,9 +196,9 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // Now failing transactions are forwarded. Is responsability of the requestor
     // to list a valid transaction
 
-    // slither-disable-next-line
-  (bool success, bytes memory result) = metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
-
+    (bool success, bytes memory result) =
+      metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
+    // slither-disable-next-line reentrancy-events
     emit MetatransactionExecuted(index, success, result);
     // The difference when calling gasleft() again is (aprox.) the gas used
     // in the call

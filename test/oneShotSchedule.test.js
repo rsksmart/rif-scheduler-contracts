@@ -35,7 +35,7 @@ contract('OneShotSchedule', (accounts) => {
     this.schedulingRequestor = accounts[2]
 
     await timeMachine.revertToSnapshot(initialSnapshot)
-    this.token = await ERC677.new( this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
+    this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
 
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount)
@@ -186,7 +186,7 @@ contract('OneShotSchedule', (accounts) => {
         await time.advanceBlock()
         const timestamp = await time.latest()
         const insideWindowTime = timestamp.add(insideWindow(plans[0].window))
-        await this.addAndExecuteWithTimes(incData,value, insideWindowTime, insideWindowTime) //near future inside the window
+        await this.addAndExecuteWithTimes(incData, value, insideWindowTime, insideWindowTime) //near future inside the window
 
         assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]), 'Not ok')
         assert.strictEqual(await this.counter.count().then((r) => r.toString()), '1', 'Counter difference')
@@ -240,7 +240,7 @@ contract('OneShotSchedule', (accounts) => {
         const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
         assert.ok(!log.args.success)
         assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then(meta => meta[7]))
+        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]))
       })
 
       it('due to insufficient gas in called contract', async () => {
