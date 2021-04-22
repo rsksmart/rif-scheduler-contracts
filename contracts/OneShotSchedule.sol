@@ -45,9 +45,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 value
   );
 
-  event MetatransactionExecuted(uint256 indexed index, bool succes, bytes result);
-  event MetatransactionExecutedFailed(uint256 indexed index, bool succes, string reason);
-  event MetatransactionExecutedReverted(uint256 indexed index, bool succes, bytes reason);
+  event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
 
   modifier onlyProvider() {
     require(address(msg.sender) == providerAccount, 'Not authorized');
