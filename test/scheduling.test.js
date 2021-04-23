@@ -66,7 +66,7 @@ contract('OneShotSchedule', (accounts) => {
 
     it('cannot schedule in the past', async () => {
       const nearPast = (await time.latest()) - 1000
-      expectRevert(this.testScheduleWithValue(0, toBN(1e15), nearPast), 'Cannot schedule it in the past')
+      await expectRevert(this.testScheduleWithValue(0, toBN(1e15), nearPast), 'Cannot schedule it in the past')
     })
   })
 })

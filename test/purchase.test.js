@@ -50,15 +50,25 @@ contract('OneShotSchedule', (accounts) => {
     })
 
     it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', () => this.testERC677Purchase(0, toBN(1), plans[0].price))
-    it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', () =>
+    it('should receive RIF tokens to purchase 10 scheduled -  ERC677 way', () =>
       this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))))
 
-    it("should reject if payment doesn't match total amount'", () =>
-      expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price), "Transferred amount doesn't match total purchase"))
 
     it('should receive RIF tokens to purchase 1 scheduled - ERC20 way', () => this.testPurchaseWithValue(0, toBN(1)))
     it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', () => this.testPurchaseWithValue(0, toBN(10)))
 
-    // it('should reject if not approved', () => assert.rejects(this.testPurchaseWithValue(toBN(1e15)), 'Allowance Exceeded'))
+    describe('failing purchases', () => {
+    it("should reject if payment doesn't match total amount'", () =>
+      expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price), "Transferred amount doesn't match total purchase"))
+
+      it("shouldn't purchase if the plan is cancelled  - ERC20", async ()=>{
+        await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAccount })
+        await expectRevert(this.testPurchaseWithValue(0, toBN(1)),"Inactive plan")
+      })
+      it("shouldn't purchase if the plan is cancelled  - ERC677", async ()=>{
+          await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAccount })
+          await expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))),"Inactive plan")
+      })
+    })
   })
 })
