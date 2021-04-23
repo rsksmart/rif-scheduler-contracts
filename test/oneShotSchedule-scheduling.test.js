@@ -18,9 +18,7 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    this.contractAdmin = accounts[0]
-    this.serviceProviderAccount = accounts[1]
-    this.schedulingRequestor = accounts[2]
+    [this.contractAdmin, this.serviceProviderAccount, this.schedulingRequestor] = accounts
 
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
