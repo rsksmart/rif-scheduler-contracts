@@ -6,7 +6,8 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   IERC677 token;
-  address providerAccount;
+  address payable providerAccount;
+  address providerAdminAccount;
 
   struct Plan {
     uint256 schegulingPrice;
@@ -48,16 +49,18 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
 
   modifier onlyProvider() {
-    require(address(msg.sender) == providerAccount, 'Not authorized');
+    require(address(msg.sender) == providerAdminAccount, 'Not authorized');
     _;
   }
 
-  constructor(IERC677 _rifToken, address _providerAccount) {
+  constructor(IERC677 _rifToken, address _adminAccount, address _providerAccount) {
     //add token receiver
     require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
+    require(_adminAccount != address(0x0), "Provider's address cannot be 0x0");
     require(address(_rifToken) != address(0x0), "Provider's address cannot be 0x0");
     token = _rifToken;
-    providerAccount = _providerAccount;
+    providerAdminAccount = _adminAccount;
+    providerAccount = payable(_providerAccount);
   }
 
   function addPlan(uint256 price, uint256 window) external onlyProvider {
@@ -206,5 +209,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // After executing we do the payout to the service provider:
     // - return the gas used
     // - send the tokens paid for the service
+    token.transfer(providerAccount, plans[metatransaction.plan].schegulingPrice);
   }
 }

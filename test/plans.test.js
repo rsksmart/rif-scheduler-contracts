@@ -15,10 +15,10 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.serviceProviderAccount, this.schedulingRequestor] = accounts
+    ;[this.contractAdmin, this.serviceProvider, this.schedulingRequestor, this.serviceProviderAdmin] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount)
+    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAdmin, this.serviceProvider)
   })
 
   describe('plans', () => {
@@ -41,23 +41,23 @@ contract('OneShotSchedule', (accounts) => {
       }
     })
 
-    it('should add a plan', () => this.testAddPlan(plans[0].price, plans[0].window, this.serviceProviderAccount))
+    it('should add a plan', () => this.testAddPlan(plans[0].price, plans[0].window, this.serviceProviderAdmin))
     it('should add two plans', async () => {
-      await this.testAddPlan(plans[0].price, plans[0].window, this.serviceProviderAccount)
-      await this.testAddPlan(plans[1].price, plans[1].window, this.serviceProviderAccount)
+      await this.testAddPlan(plans[0].price, plans[0].window, this.serviceProviderAdmin)
+      await this.testAddPlan(plans[1].price, plans[1].window, this.serviceProviderAdmin)
     })
 
     it('should reject plans added by other users', async () =>
       await expectRevert(this.testAddPlan(plans[0].price, plans[0].window, this.schedulingRequestor), 'Not authorized'))
 
-    it('should cancel a plan', () => this.testCancelPlan(this.serviceProviderAccount))
+    it('should cancel a plan', () => this.testCancelPlan(this.serviceProviderAdmin))
 
     it("should reject to cancel a plan if it's not the provider", () =>
       expectRevert(this.testCancelPlan(this.schedulingRequestor), 'Not authorized'))
 
     it('should reject to cancel if the plan is not active', async () => {
-      await this.testCancelPlan(this.serviceProviderAccount)
-      await expectRevert(this.testCancelPlan(this.serviceProviderAccount), 'The plan is not active')
+      await this.testCancelPlan(this.serviceProviderAdmin)
+      await expectRevert(this.testCancelPlan(this.serviceProviderAdmin), 'The plan is not active')
     })
   })
 })

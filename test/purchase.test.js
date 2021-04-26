@@ -16,18 +16,18 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.serviceProviderAccount, this.schedulingRequestor] = accounts
+    ;[this.contractAdmin, this.serviceProvider, this.schedulingRequestor, this.serviceProviderAdmin] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
-
-    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount)
+   
+    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAdmin, this.serviceProvider)
     this.counter = await Counter.new()
   })
 
   describe('purchase', () => {
     beforeEach(async () => {
-      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProviderAccount })
+      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProviderAdmin })
       this.testPurchaseWithValue = async (plan, value) => {
         await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.schedulingRequestor })
         await this.oneShotSchedule.purchase(plan, value, { from: this.schedulingRequestor })
@@ -61,11 +61,11 @@ contract('OneShotSchedule', (accounts) => {
         expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price), "Transferred amount doesn't match total purchase"))
 
       it("shouldn't purchase if the plan is cancelled  - ERC20", async () => {
-        await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAccount })
+        await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAdmin })
         await expectRevert(this.testPurchaseWithValue(0, toBN(1)), 'Inactive plan')
       })
       it("shouldn't purchase if the plan is cancelled  - ERC677", async () => {
-        await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAccount })
+        await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAdmin })
         await expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'Inactive plan')
       })
     })
