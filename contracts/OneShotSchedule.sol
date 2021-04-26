@@ -1,20 +1,26 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
-import '@rsksmart/erc677/contracts/ERC677TransferReceiver.sol';
-import '@openzeppelin/contracts/math/SafeMath.sol';
+import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
-contract OneShotSchedule is ERC677TransferReceiver {
-  using SafeMath for uint256;
-  uint256 window;
+contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   IERC677 token;
   address providerAccount;
-  uint256 price;
 
-  mapping(address => uint256) remainingSchedulings;
+  struct Plan {
+    uint256 schegulingPrice;
+    uint256 window;
+    bool active;
+  }
+
+  Plan[] plans;
+
+  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
 
   struct Metatransaction {
     address from;
+    uint256 plan;
     address to;
     bytes data;
     uint256 gas;
@@ -25,73 +31,108 @@ contract OneShotSchedule is ERC677TransferReceiver {
 
   Metatransaction[] private transactionsScheduled;
 
-  event SchedulingsPurchased(address indexed from, uint256 amount);
+  event PlanAdded(uint256 indexed index, uint256 price, uint256 window);
+  event PlanCancelled(uint256 indexed index);
+  event SchedulingsPurchased(address indexed from, uint256 plan, uint256 amount);
   event MetatransactionAdded(
     uint256 indexed index,
     address indexed from,
-    address indexed to,
+    uint256 indexed plan,
+    address to,
     bytes data,
     uint256 gas,
     uint256 timestamp,
     uint256 value
   );
-  event MetatransactionExecuted(uint256 indexed index, bool succes, bytes result);
 
-  constructor(
-    IERC677 _rifToken,
-    address _providerAccount,
-    uint256 _price,
-    uint256 _window
-  ) public {
+  event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
+
+  modifier onlyProvider() {
+    require(address(msg.sender) == providerAccount, 'Not authorized');
+    _;
+  }
+
+  constructor(IERC677 _rifToken, address _providerAccount) {
+    //add token receiver
     require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
     require(address(_rifToken) != address(0x0), "Provider's address cannot be 0x0");
-    window = _window;
     token = _rifToken;
-    price = _price;
-    window = _window;
     providerAccount = _providerAccount;
   }
 
-  function _totalPrice(uint256 amount) private view returns (uint256) {
-    return amount.mul(price);
+  function addPlan(uint256 price, uint256 window) external onlyProvider {
+    plans.push(Plan(price, window, true));
+    emit PlanAdded(plans.length - 1, price, window);
   }
 
-  function doPurchase(address from, uint256 schedulingAmount) private {
-    remainingSchedulings[from] = remainingSchedulings[from].add(schedulingAmount);
-    emit SchedulingsPurchased(from, schedulingAmount);
+  function getPlan(uint256 index)
+    external
+    view
+    returns (
+      uint256 price,
+      uint256 window,
+      bool active
+    )
+  {
+    price = plans[index].schegulingPrice;
+    window = plans[index].window;
+    active = plans[index].active;
   }
 
-  function purchase(uint256 amount) external {
-    doPurchase(msg.sender, amount);
-    require(token.transferFrom(msg.sender, address(this), _totalPrice(amount)), "Payment did't pass");
+  function cancelPlan(uint256 plan) external onlyProvider {
+    require(plans[plan].active, 'The plan is already inactive');
+    plans[plan].active = false;
+    emit PlanCancelled(plan);
+  }
+
+  function _totalPrice(uint256 plan, uint256 amount) private view returns (uint256) {
+    return amount * plans[plan].schegulingPrice;
+  }
+
+  function doPurchase(
+    address from,
+    uint256 plan,
+    uint256 schedulingAmount
+  ) private {
+    require(plans[plan].active, 'Inactive plan');
+    remainingSchedulings[from][plan] = remainingSchedulings[from][plan] + schedulingAmount;
+    emit SchedulingsPurchased(from, plan, schedulingAmount);
+  }
+
+  function purchase(uint256 plan, uint256 amount) external {
+    doPurchase(msg.sender, plan, amount);
+    require(token.transferFrom(msg.sender, address(this), _totalPrice(plan, amount)), "Payment did't pass");
   }
 
   function tokenFallback(
     address from,
     uint256 amount,
     bytes calldata data
-  ) external returns (bool) {
+  ) external override returns (bool) {
     require(address(token) == address(msg.sender), 'Bad token');
-    uint256 schedulingAmount = abi.decode(data, (uint256));
-    require(amount == _totalPrice(schedulingAmount), "Transferred amount doesn't match total purchase");
-    doPurchase(from, schedulingAmount);
+    uint256 plan;
+    uint256 schedulingAmount;
+    (plan, schedulingAmount) = abi.decode(data, (uint256, uint256));
+    require(amount == _totalPrice(plan, schedulingAmount), "Transferred amount doesn't match total purchase");
+    doPurchase(from, plan, schedulingAmount);
     return true;
   }
 
-  function getRemainingSchedulings(address requestor) external view returns (uint256) {
-    return remainingSchedulings[requestor];
+  function getRemainingSchedulings(address requestor, uint256 plan) external view returns (uint256) {
+    return remainingSchedulings[requestor][plan];
   }
 
-  function _spend(address requestor) private {
-    require(remainingSchedulings[requestor] > 0, 'No balance available');
-    remainingSchedulings[requestor] = remainingSchedulings[requestor].sub(1);
+  function _spend(address requestor, uint256 plan) private {
+    require(remainingSchedulings[requestor][plan] > 0, 'No balance available');
+    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] - 1;
   }
 
-  function _refund(address requestor) private {
-    remainingSchedulings[requestor] = remainingSchedulings[requestor].add(1);
+  function _refund(address requestor, uint256 plan) private {
+    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] + 1;
   }
 
   function schedule(
+    uint256 plan,
     address to,
     bytes calldata data,
     uint256 gas,
@@ -99,9 +140,9 @@ contract OneShotSchedule is ERC677TransferReceiver {
   ) external payable {
     // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
-    _spend(msg.sender);
-    transactionsScheduled.push(Metatransaction(msg.sender, to, data, gas, executionTime, msg.value, false));
-    emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, to, data, gas, executionTime, msg.value);
+    _spend(msg.sender, plan);
+    transactionsScheduled.push(Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, false));
+    emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
 
   function getSchedule(uint256 index)
@@ -109,6 +150,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     view
     returns (
       address,
+      uint256,
       address,
       bytes memory,
       uint256,
@@ -120,6 +162,7 @@ contract OneShotSchedule is ERC677TransferReceiver {
     Metatransaction memory metatransaction = transactionsScheduled[index];
     return (
       metatransaction.from,
+      metatransaction.plan,
       metatransaction.to,
       metatransaction.data,
       metatransaction.gas,
@@ -129,9 +172,8 @@ contract OneShotSchedule is ERC677TransferReceiver {
     );
   }
 
-  // TODO: we need to prevent reentrancy in the next line!!
-  // slither-disable-next-line reentrancy-events
-  function execute(uint256 index) external {
+  // slither-disable-next-line low-level-calls
+  function execute(uint256 index) external nonReentrant {
     Metatransaction storage metatransaction = transactionsScheduled[index];
 
     require(!metatransaction.executed, 'Already executed');
@@ -141,9 +183,9 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // - penalize the service provider
 
     // slither-disable-next-line timestamp
-    require(metatransaction.timestamp.sub(window) < block.timestamp, 'Too soon');
+    require(metatransaction.timestamp - (plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
     // slither-disable-next-line timestamp
-    require(metatransaction.timestamp.add(window) > block.timestamp, 'Too late');
+    require(metatransaction.timestamp + (plans[metatransaction.plan].window) > block.timestamp, 'Too late');
 
     // We can use gasleft() here to charge the consumer for the gas
     // A contract may hold user's gas and charge it after executing
@@ -154,16 +196,15 @@ contract OneShotSchedule is ERC677TransferReceiver {
     // Now failing transactions are forwarded. Is responsability of the requestor
     // to list a valid transaction
 
-    // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) =
-      metatransaction.to.call.gas(metatransaction.gas).value(metatransaction.value)(metatransaction.data);
-
+      metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
+    // slither-disable-next-line reentrancy-events
+    emit MetatransactionExecuted(index, success, result);
     // The difference when calling gasleft() again is (aprox.) the gas used
     // in the call
 
     // After executing we do the payout to the service provider:
     // - return the gas used
     // - send the tokens paid for the service
-    emit MetatransactionExecuted(index, success, result);
   }
 }
