@@ -16,7 +16,7 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    [this.contractAdmin, this.serviceProviderAccount, this.schedulingRequestor] = accounts
+    ;[this.contractAdmin, this.serviceProviderAccount, this.schedulingRequestor] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
@@ -53,21 +53,20 @@ contract('OneShotSchedule', (accounts) => {
     it('should receive RIF tokens to purchase 10 scheduled -  ERC677 way', () =>
       this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))))
 
-
     it('should receive RIF tokens to purchase 1 scheduled - ERC20 way', () => this.testPurchaseWithValue(0, toBN(1)))
     it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', () => this.testPurchaseWithValue(0, toBN(10)))
 
     describe('failing purchases', () => {
-    it("should reject if payment doesn't match total amount'", () =>
-      expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price), "Transferred amount doesn't match total purchase"))
+      it("should reject if payment doesn't match total amount'", () =>
+        expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price), "Transferred amount doesn't match total purchase"))
 
-      it("shouldn't purchase if the plan is cancelled  - ERC20", async ()=>{
+      it("shouldn't purchase if the plan is cancelled  - ERC20", async () => {
         await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAccount })
-        await expectRevert(this.testPurchaseWithValue(0, toBN(1)),"Inactive plan")
+        await expectRevert(this.testPurchaseWithValue(0, toBN(1)), 'Inactive plan')
       })
-      it("shouldn't purchase if the plan is cancelled  - ERC677", async ()=>{
-          await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAccount })
-          await expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))),"Inactive plan")
+      it("shouldn't purchase if the plan is cancelled  - ERC677", async () => {
+        await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProviderAccount })
+        await expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'Inactive plan')
       })
     })
   })

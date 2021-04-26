@@ -52,7 +52,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     _;
   }
 
-  constructor(IERC677 _rifToken, address _providerAccount) { //add token receiver
+  constructor(IERC677 _rifToken, address _providerAccount) {
+    //add token receiver
     require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
     require(address(_rifToken) != address(0x0), "Provider's address cannot be 0x0");
     token = _rifToken;
@@ -93,7 +94,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 plan,
     uint256 schedulingAmount
   ) private {
-    require(plans[plan].active, "Inactive plan");
+    require(plans[plan].active, 'Inactive plan');
     remainingSchedulings[from][plan] = remainingSchedulings[from][plan] + schedulingAmount;
     emit SchedulingsPurchased(from, plan, schedulingAmount);
   }
