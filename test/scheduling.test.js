@@ -71,12 +71,15 @@ contract('OneShotSchedule', (accounts) => {
     it('cannot schedule requestor has no balance', async () => {
       const nearFuture = (await time.latest()) + 100
       // buy one, use one
-      await this.testScheduleWithValue(0, toBN(0), nearFuture) 
+      await this.testScheduleWithValue(0, toBN(0), nearFuture)
       // try to schedule another
       return expectRevert(
-        this.oneShotSchedule.schedule(0, this.counter.address, incData, this.gas, nearFuture, 
-          { from: this.schedulingRequestor, value:toBN(0) }),
-        'No balance available')
+        this.oneShotSchedule.schedule(0, this.counter.address, incData, this.gas, nearFuture, {
+          from: this.schedulingRequestor,
+          value: toBN(0),
+        }),
+        'No balance available'
+      )
     })
   })
 })
