@@ -20,7 +20,7 @@ contract('OneShotSchedule', (accounts) => {
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
-   
+
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAdmin, this.serviceProvider)
     this.counter = await Counter.new()
   })

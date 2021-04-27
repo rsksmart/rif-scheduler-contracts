@@ -61,16 +61,24 @@ contract('OneShotSchedule', (accounts) => {
         const initialContractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
         await this.oneShotSchedule.execute(0)
         // Transaction executed status
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]), 'Not ok') 
-         // Transaction executed on contract
+        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]), 'Not ok')
+        // Transaction executed on contract
         assert.strictEqual(await this.counter.count().then((r) => r.toString()), '1', 'Counter difference')
         // Value transferred to contract
-        assert.strictEqual(await web3.eth.getBalance(this.counter.address).then((r) => r.toString()), value.toString(), 'wrong balance') 
+        assert.strictEqual(await web3.eth.getBalance(this.counter.address).then((r) => r.toString()), value.toString(), 'wrong balance')
         // token balance transferred from contract to provider
         const expectedProviderBalance = initialProviderBalance.add(plans[0].price)
         const expectedContractBalance = initialContractBalance.sub(plans[0].price)
-        assert.strictEqual(await this.token.balanceOf(this.serviceProvider).then((r) => r.toString()), expectedProviderBalance.toString(), 'wrong provider balance')
-        assert.strictEqual(await this.token.balanceOf(this.oneShotSchedule.address).then((r) => r.toString()), expectedContractBalance.toString(), 'wrong contract balance')
+        assert.strictEqual(
+          await this.token.balanceOf(this.serviceProvider).then((r) => r.toString()),
+          expectedProviderBalance.toString(),
+          'wrong provider balance'
+        )
+        assert.strictEqual(
+          await this.token.balanceOf(this.oneShotSchedule.address).then((r) => r.toString()),
+          expectedContractBalance.toString(),
+          'wrong contract balance'
+        )
       }
     })
 

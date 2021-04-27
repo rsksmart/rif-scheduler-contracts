@@ -53,7 +53,11 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     _;
   }
 
-  constructor(IERC677 _rifToken, address _adminAccount, address _providerAccount) {
+  constructor(
+    IERC677 _rifToken,
+    address _adminAccount,
+    address _providerAccount
+  ) {
     //add token receiver
     require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
     require(_adminAccount != address(0x0), "Provider's address cannot be 0x0");
