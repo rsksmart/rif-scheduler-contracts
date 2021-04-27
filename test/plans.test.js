@@ -57,7 +57,7 @@ contract('OneShotSchedule', (accounts) => {
 
     it('should reject to cancel if the plan is not active', async () => {
       await this.testCancelPlan(this.serviceProvider)
-      await expectRevert(this.testCancelPlan(this.serviceProvider), 'The plan is not active')
+      return expectRevert(this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider }), 'The plan is already inactive')
     })
   })
 })

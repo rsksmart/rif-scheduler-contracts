@@ -6,7 +6,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   IERC677 token;
-  address payable payee;
+  address public payee;
   address serviceProvider;
 
   struct Plan {
@@ -63,7 +63,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     require(address(_rifToken) != address(0x0), 'Token address cannot be 0x0');
     token = _rifToken;
     serviceProvider = _serviceProvider;
-    payee = payable(_payee);
+    payee = _payee;
   }
 
   function addPlan(uint256 price, uint256 window) external onlyProvider {
@@ -89,6 +89,11 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     require(plans[plan].active, 'The plan is already inactive');
     plans[plan].active = false;
     emit PlanCancelled(plan);
+  }
+
+  function setPayee(address payable _payee) external onlyProvider {
+    require(_payee != address(0x0), 'Payee address cannot be 0x0');
+    payee = _payee;
   }
 
   function _totalPrice(uint256 plan, uint256 amount) private view returns (uint256) {

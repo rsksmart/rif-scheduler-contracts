@@ -59,7 +59,6 @@ contract('OneShotSchedule', (accounts) => {
     describe('failing purchases', () => {
       it("should reject if payment doesn't match total amount'", () =>
         expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price), "Transferred amount doesn't match total purchase"))
-
       it("shouldn't purchase if the plan is cancelled  - ERC20", async () => {
         await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })
         await expectRevert(this.testPurchaseWithValue(0, toBN(1)), 'Inactive plan')
@@ -68,6 +67,10 @@ contract('OneShotSchedule', (accounts) => {
         await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })
         await expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'Inactive plan')
       })
+      it("shouldn't purchase if payment fails", () => 
+        // making it fail because there's no amount approved
+        expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.schedulingRequestor }))
+      )
     })
   })
 })
