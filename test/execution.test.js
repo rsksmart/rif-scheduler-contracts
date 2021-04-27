@@ -23,19 +23,19 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.serviceProvider, this.schedulingRequestor, this.serviceProviderAdmin] = accounts
+    ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
 
-    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAdmin, this.serviceProvider)
+    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
     this.counter = await Counter.new()
     this.gas = toBN(await this.counter.inc.estimateGas())
   })
 
   describe('execution', async () => {
     beforeEach(async () => {
-      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProviderAdmin })
+      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProvider })
       this.testScheduleWithValue = async (plan, data, value, timestamp) => {
         const to = this.counter.address
         const from = this.schedulingRequestor
@@ -53,7 +53,7 @@ contract('OneShotSchedule', (accounts) => {
       }
 
       this.testExecutionWithValue = async (value) => {
-        const initialProviderBalance = await this.token.balanceOf(this.serviceProvider)
+        const initialPayeeBalance = await this.token.balanceOf(this.payee)
         await time.advanceBlock()
         const timestamp = await time.latest()
         const insideWindowTime = timestamp.add(insideWindow(plans[0].window))
@@ -67,11 +67,11 @@ contract('OneShotSchedule', (accounts) => {
         // Value transferred to contract
         assert.strictEqual(await web3.eth.getBalance(this.counter.address).then((r) => r.toString()), value.toString(), 'wrong balance')
         // token balance transferred from contract to provider
-        const expectedProviderBalance = initialProviderBalance.add(plans[0].price)
+        const expectedPayeeBalance = initialPayeeBalance.add(plans[0].price)
         const expectedContractBalance = initialContractBalance.sub(plans[0].price)
         assert.strictEqual(
-          await this.token.balanceOf(this.serviceProvider).then((r) => r.toString()),
-          expectedProviderBalance.toString(),
+          await this.token.balanceOf(this.payee).then((r) => r.toString()),
+          expectedPayeeBalance.toString(),
           'wrong provider balance'
         )
         assert.strictEqual(
