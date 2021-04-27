@@ -67,10 +67,9 @@ contract('OneShotSchedule', (accounts) => {
         await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })
         await expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'Inactive plan')
       })
-      it("shouldn't purchase if payment fails", () => 
+      it("shouldn't purchase if payment fails", () =>
         // making it fail because there's no amount approved
-        expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.schedulingRequestor }))
-      )
+        expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.schedulingRequestor })))
     })
   })
 })
