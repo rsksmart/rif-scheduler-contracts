@@ -6,7 +6,8 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   IERC677 token;
-  address providerAccount;
+  address public payee;
+  address serviceProvider;
 
   struct Plan {
     uint256 schegulingPrice;
@@ -48,16 +49,21 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
 
   modifier onlyProvider() {
-    require(address(msg.sender) == providerAccount, 'Not authorized');
+    require(address(msg.sender) == serviceProvider, 'Not authorized');
     _;
   }
 
-  constructor(IERC677 _rifToken, address _providerAccount) {
-    //add token receiver
-    require(_providerAccount != address(0x0), "Provider's address cannot be 0x0");
-    require(address(_rifToken) != address(0x0), "Provider's address cannot be 0x0");
+  constructor(
+    IERC677 _rifToken,
+    address _serviceProvider,
+    address _payee
+  ) {
+    require(_payee != address(0x0), 'Payee address cannot be 0x0');
+    require(_serviceProvider != address(0x0), 'Service provider address cannot be 0x0');
+    require(address(_rifToken) != address(0x0), 'Token address cannot be 0x0');
     token = _rifToken;
-    providerAccount = _providerAccount;
+    serviceProvider = _serviceProvider;
+    payee = _payee;
   }
 
   function addPlan(uint256 price, uint256 window) external onlyProvider {
@@ -83,6 +89,11 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     require(plans[plan].active, 'The plan is already inactive');
     plans[plan].active = false;
     emit PlanCancelled(plan);
+  }
+
+  function setPayee(address payable _payee) external onlyProvider {
+    require(_payee != address(0x0), 'Payee address cannot be 0x0');
+    payee = _payee;
   }
 
   function _totalPrice(uint256 plan, uint256 amount) private view returns (uint256) {
@@ -127,9 +138,9 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] - 1;
   }
 
-  function _refund(address requestor, uint256 plan) private {
-    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] + 1;
-  }
+  // function _refund(address requestor, uint256 plan) private {
+  //   remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] + 1;
+  // }
 
   function schedule(
     uint256 plan,
@@ -206,5 +217,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // After executing we do the payout to the service provider:
     // - return the gas used
     // - send the tokens paid for the service
+    token.transfer(payee, plans[metatransaction.plan].schegulingPrice);
   }
 }

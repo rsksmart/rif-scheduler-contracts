@@ -18,20 +18,20 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.serviceProviderAccount, this.schedulingRequestor] = accounts
+    ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider] = accounts
 
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
 
-    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProviderAccount)
+    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
     this.counter = await Counter.new()
     this.gas = toBN(await this.counter.inc.estimateGas())
   })
 
   describe('scheduling', () => {
     beforeEach(async () => {
-      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProviderAccount })
+      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProvider })
       this.testScheduleWithValue = async (plan, value, timestamp) => {
         const to = this.counter.address
         const gas = this.gas
@@ -67,6 +67,19 @@ contract('OneShotSchedule', (accounts) => {
     it('cannot schedule in the past', async () => {
       const nearPast = (await time.latest()) - 1000
       await expectRevert(this.testScheduleWithValue(0, toBN(1e15), nearPast), 'Cannot schedule it in the past')
+    })
+    it('cannot schedule requestor has no balance', async () => {
+      const nearFuture = (await time.latest()) + 100
+      // buy one, use one
+      await this.testScheduleWithValue(0, toBN(0), nearFuture)
+      // try to schedule another
+      return expectRevert(
+        this.oneShotSchedule.schedule(0, this.counter.address, incData, this.gas, nearFuture, {
+          from: this.schedulingRequestor,
+          value: toBN(0),
+        }),
+        'No balance available'
+      )
     })
   })
 })
