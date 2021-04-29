@@ -16,10 +16,10 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider] = accounts
+    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-    await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
+    await this.token.transfer(this.requestor, 100000, { from: this.contractAdmin })
 
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
     this.counter = await Counter.new()
@@ -29,9 +29,9 @@ contract('OneShotSchedule', (accounts) => {
     beforeEach(async () => {
       await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProvider })
       this.testPurchaseWithValue = async (plan, value) => {
-        await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.schedulingRequestor })
-        await this.oneShotSchedule.purchase(plan, value, { from: this.schedulingRequestor })
-        const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.schedulingRequestor, plan)
+        await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
+        await this.oneShotSchedule.purchase(plan, value, { from: this.requestor })
+        const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
         const contractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
 
         assert.strictEqual(scheduled.toString(10), value.toString(10), `Didn't schedule ${value}`)
@@ -40,8 +40,8 @@ contract('OneShotSchedule', (accounts) => {
 
       this.testERC677Purchase = async (plan, schedulings, totalToTransfer) => {
         const encodedData = web3.eth.abi.encodeParameters(['uint256', 'uint256'], [plan.toString(), schedulings.toString()])
-        await this.token.transferAndCall(this.oneShotSchedule.address, totalToTransfer, encodedData, { from: this.schedulingRequestor })
-        const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.schedulingRequestor, plan)
+        await this.token.transferAndCall(this.oneShotSchedule.address, totalToTransfer, encodedData, { from: this.requestor })
+        const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
         const contractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
 
         assert.strictEqual(scheduled.toString(10), schedulings.toString(10), `Didn't schedule ${schedulings.toString(10)}`)
@@ -69,7 +69,7 @@ contract('OneShotSchedule', (accounts) => {
       })
       it("shouldn't purchase if payment fails", () =>
         // making it fail because there's no amount approved
-        expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.schedulingRequestor })))
+        expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.requestor })))
     })
   })
 })

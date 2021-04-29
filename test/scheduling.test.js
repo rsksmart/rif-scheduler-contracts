@@ -6,7 +6,7 @@ const assert = require('assert')
 const { time, expectEvent, expectRevert } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
-const { plans } = require('./common.js')
+const { plans, MetaTransactionState } = require('./common.js')
 
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
@@ -18,11 +18,11 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider] = accounts
+    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-    await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
+    await this.token.transfer(this.requestor, 100000, { from: this.contractAdmin })
 
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
     this.counter = await Counter.new()
@@ -35,20 +35,20 @@ contract('OneShotSchedule', (accounts) => {
       this.testScheduleWithValue = async (plan, value, timestamp) => {
         const to = this.counter.address
         const gas = this.gas
-        await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.schedulingRequestor })
-        await this.oneShotSchedule.purchase(plan, 1, { from: this.schedulingRequestor })
-        await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.schedulingRequestor, value })
+        await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
+        await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
+        await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
         const actual = await this.oneShotSchedule.getSchedule(0)
-        const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.schedulingRequestor, plan)
+        const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
 
-        assert.strictEqual(actual[0], this.schedulingRequestor, 'Not scheduled for this user')
+        assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
         assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')
         assert.strictEqual(actual[2], to, 'Wrong contract address')
         assert.strictEqual(actual[3], incData)
         assert.strictEqual(actual[4].toString(), gas.toString())
         assert.strictEqual(actual[5].toString(), timestamp.toString())
         assert.strictEqual(actual[6].toString(), value.toString())
-        assert.strictEqual(actual[7], false)
+        assert.strictEqual(actual[7].toString(), MetaTransactionState.Scheduled)
 
         assert.strictEqual(scheduled.toString(10), '0', `Shouldn't have any scheduling`)
       }
@@ -75,7 +75,7 @@ contract('OneShotSchedule', (accounts) => {
       // try to schedule another
       return expectRevert(
         this.oneShotSchedule.schedule(0, this.counter.address, incData, this.gas, nearFuture, {
-          from: this.schedulingRequestor,
+          from: this.requestor,
           value: toBN(0),
         }),
         'No balance available'

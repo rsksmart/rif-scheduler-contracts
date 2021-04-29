@@ -8,7 +8,7 @@ const { formatWithCursor } = require('prettier')
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider, this.anotherAccount] = accounts
+    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider, this.anotherAccount] = accounts
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
   })
 
@@ -22,7 +22,7 @@ contract('OneShotSchedule', (accounts) => {
   })
   describe('payee', () => {
     beforeEach(async () => {
-      ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider] = accounts
+      ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
       this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
       this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
     })

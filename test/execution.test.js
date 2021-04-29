@@ -7,7 +7,7 @@ const { time, expectEvent, expectRevert } = require('@openzeppelin/test-helpers'
 const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
 
-const { plans } = require('./common.js')
+const { plans, MetaTransactionState } = require('./common.js')
 
 const insideWindow = (window) => window.sub(toBN(1000))
 const outsideWindow = (window) => window.add(toBN(1000))
@@ -23,14 +23,16 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider] = accounts
+    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-    await this.token.transfer(this.schedulingRequestor, 100000, { from: this.contractAdmin })
+    await this.token.transfer(this.requestor, 100000, { from: this.contractAdmin })
 
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
     this.counter = await Counter.new()
     this.gas = toBN(await this.counter.inc.estimateGas())
+
+    this.getTxStatus = (transaction) => this.oneShotSchedule.getSchedule(transaction).then((meta) => meta[7].toString())
   })
 
   describe('execution', async () => {
@@ -38,30 +40,30 @@ contract('OneShotSchedule', (accounts) => {
       await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProvider })
       this.testScheduleWithValue = async (plan, data, value, timestamp) => {
         const to = this.counter.address
-        const from = this.schedulingRequestor
+        const from = this.requestor
         const gas = this.gas
         await this.token.approve(this.oneShotSchedule.address, plans[plan].price, { from })
         await this.oneShotSchedule.purchase(plan, toBN(1), { from })
         return await this.oneShotSchedule.schedule(plan, to, data, gas, timestamp, { from, value })
       }
 
-      this.addAndExecuteWithTimes = async (data, value, scheduleTimestamp, executionTimestamp) => {
-        await this.testScheduleWithValue(0, data, value, scheduleTimestamp)
+      this.executeWithTime = async (executionTimestamp) => {
         await time.increaseTo(executionTimestamp)
         await time.advanceBlock()
-        return await this.oneShotSchedule.execute(0)
+        return this.oneShotSchedule.execute(0)
       }
 
       this.testExecutionWithValue = async (value) => {
-        const initialPayeeBalance = await this.token.balanceOf(this.payee)
-        await time.advanceBlock()
         const timestamp = await time.latest()
         const insideWindowTime = timestamp.add(insideWindow(plans[0].window))
         await this.testScheduleWithValue(0, incData, value, insideWindowTime)
+        await time.increaseTo(insideWindowTime)
+        await time.advanceBlock()
+        const initialPayeeBalance = await this.token.balanceOf(this.payee)
         const initialContractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
         await this.oneShotSchedule.execute(0)
         // Transaction executed status
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]), 'Not ok')
+        assert.strictEqual(await this.getTxStatus(0), MetaTransactionState.ExecutionSuccessful, 'Execution failed')
         // Transaction executed on contract
         assert.strictEqual(await this.counter.count().then((r) => r.toString()), '1', 'Counter difference')
         // Value transferred to contract
@@ -92,51 +94,49 @@ contract('OneShotSchedule', (accounts) => {
 
     it('cannot execute before timestamp - window', async () => {
       const timestamp = await time.latest()
-      expectRevert(
-        this.addAndExecuteWithTimes(
-          incData,
-          toBN(0),
-          timestamp.add(toBN(60 * 60 * 24)), // scheduled for tomorrow
-          timestamp.add(toBN(60 * 60 * 24).sub(outsideWindow(plans[0].window)))
-        ),
-        'Too soon'
-      )
+      // scheduled for tomorrow
+      const scheduleTimestamp = timestamp.add(toBN(60 * 60 * 24))
+      await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
+      // execute before window
+      expectRevert(this.executeWithTime(timestamp.add(toBN(60 * 60 * 24).sub(outsideWindow(plans[0].window)))), 'Too soon')
     })
 
     it('cannot execute after timestamp + window', async () => {
       const timestamp = await time.latest()
-      expectRevert(
-        this.addAndExecuteWithTimes(
-          incData,
-          toBN(0),
-          timestamp.add(toBN(60 * 60 * 24)), // scheduled for tomorrow
-          timestamp.add(toBN(60 * 60 * 24).add(outsideWindow(plans[0].window)))
-        ),
-        'Too late'
-      )
+      // scheduled for tomorrow
+      const scheduleTimestamp = timestamp.add(toBN(60 * 60 * 24))
+      await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
+      const requestorBalance = await web3.eth.getBalance(this.requestor)
+      // execute after window
+      const receipt = await this.executeWithTime(timestamp.add(toBN(60 * 60 * 24).add(outsideWindow(plans[0].window))))
+
+      // this should reflect that it was late
+      expectEvent.notEmitted(receipt, 'MetatransactionExecuted')
+      assert.strictEqual(await this.getTxStatus(0), MetaTransactionState.Refunded, 'Execution not failed')
+      assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
     })
 
     describe('failing metatransactions', () => {
       it('due to revert in called contract', async () => {
         const timestamp = await time.latest()
-        const tx = await this.addAndExecuteWithTimes(
-          failData,
-          toBN(0),
-          timestamp.add(toBN(60 * 60 * 24)), // scheduled for tomorrow
-          timestamp.add(toBN(60 * 60 * 24).add(insideWindow(plans[0].window)))
-        )
+        // scheduled for tomorrow
+        await this.testScheduleWithValue(0, failData, toBN(0), timestamp.add(toBN(10)))
+        const tx = await this.oneShotSchedule.execute(0)
         const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
-        assert.ok(!log.args.success)
         assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]))
+        expectEvent(tx, 'MetatransactionExecuted', {
+          index: toBN(0),
+          success: false,
+        })
+        assert.strictEqual(await this.getTxStatus(0), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
       })
 
       it('due to insufficient gas in called contract', async () => {
         const to = this.counter.address
         const gas = toBN(10)
         const timestamp = await time.latest()
+        const from = this.requestor
         const timestampInsideWindow = timestamp.add(insideWindow(plans[0].window))
-        const from = this.schedulingRequestor
         await this.token.approve(this.oneShotSchedule.address, plans[0].price, { from })
         await this.oneShotSchedule.purchase(toBN(0), toBN(1), { from })
         await this.oneShotSchedule.schedule(0, to, failData, gas, timestampInsideWindow, { from })
@@ -145,7 +145,7 @@ contract('OneShotSchedule', (accounts) => {
           index: toBN(0),
           success: false,
         })
-        assert.ok(await this.oneShotSchedule.getSchedule(0).then((meta) => meta[7]))
+        assert.strictEqual(await this.getTxStatus(0), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
       })
     })
   })
