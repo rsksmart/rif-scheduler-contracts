@@ -15,7 +15,7 @@ timeMachine.takeSnapshot().then((id) => {
 
 contract('OneShotSchedule', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.payee, this.schedulingRequestor, this.serviceProvider] = accounts
+    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
@@ -48,12 +48,11 @@ contract('OneShotSchedule', (accounts) => {
     })
 
     it('should reject plans added by other users', async () =>
-      await expectRevert(this.testAddPlan(plans[0].price, plans[0].window, this.schedulingRequestor), 'Not authorized'))
+      await expectRevert(this.testAddPlan(plans[0].price, plans[0].window, this.requestor), 'Not authorized'))
 
     it('should cancel a plan', () => this.testCancelPlan(this.serviceProvider))
 
-    it("should reject to cancel a plan if it's not the provider", () =>
-      expectRevert(this.testCancelPlan(this.schedulingRequestor), 'Not authorized'))
+    it("should reject to cancel a plan if it's not the provider", () => expectRevert(this.testCancelPlan(this.requestor), 'Not authorized'))
 
     it('should reject to cancel if the plan is not active', async () => {
       await this.testCancelPlan(this.serviceProvider)
