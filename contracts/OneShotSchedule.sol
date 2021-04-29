@@ -142,8 +142,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   function refund(uint256 index) private {
     Metatransaction storage metatransaction = transactionsScheduled[index];
     remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
-    payable(metatransaction.requestor).transfer(metatransaction.value);
     metatransaction.state = MetatransactionState.Refunded;
+    payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
   function schedule(
@@ -195,11 +195,12 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   //   Scheduled -> ExecutionFailed
   //   Scheduled -> Overdue (Scheduled but scheduledTime outside the execution window, expected earlier)
   //   Scheduled -> Refunded (refunds when executed and it's overdue)
+  
+  // slither-disable-next-line timestamp
   function transactionState(uint256 index) public view returns (MetatransactionState) {
     Metatransaction memory metatransaction = transactionsScheduled[index];
     if (
       metatransaction.state == MetatransactionState.Scheduled &&
-      // slither-disable-next-line timestamp
       (metatransaction.timestamp + (plans[metatransaction.plan].window) < block.timestamp)
     ) {
       return MetatransactionState.Overdue;
@@ -217,11 +218,10 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     require((metatransaction.timestamp - plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
 
     if (transactionState(index) == MetatransactionState.Overdue) {
-      refund(index);
       // - penalize the service provider
+      refund(index);
       return;
     }
-
     // We can use gasleft() here to charge the consumer for the gas
     // A contract may hold user's gas and charge it after executing
     // the transaction
@@ -240,6 +240,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // The difference when calling gasleft() again is (aprox.) the gas used
     // After executing we do the payout to the service provider:
     // - return the gas used
-    token.transfer(payee, plans[metatransaction.plan].schegulingPrice);
+    require(token.transfer(payee, plans[metatransaction.plan].schegulingPrice), "Couldn't transfer to payee");
   }
 }
