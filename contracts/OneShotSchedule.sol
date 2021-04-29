@@ -107,7 +107,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 schedulingAmount
   ) private {
     require(plans[plan].active, 'Inactive plan');
-    remainingSchedulings[requestor][plan] = remainingSchedulings[requestor][plan] + schedulingAmount;
+    remainingSchedulings[requestor][plan] += schedulingAmount;
     emit SchedulingsPurchased(requestor, plan, schedulingAmount);
   }
 
@@ -177,6 +177,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     )
   {
     Metatransaction memory metatransaction = transactionsScheduled[index];
+    MetatransactionState state = transactionState(index);
     return (
       metatransaction.requestor,
       metatransaction.plan,
@@ -185,15 +186,26 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
       metatransaction.gas,
       metatransaction.timestamp,
       metatransaction.value,
-      metatransaction.state
+      state
     );
   }
 
-  function isOverdue(uint256 index) public view returns (bool) {
+  // State transitions for scheduled transaction:
+  //   Scheduled -> ExecutionSuccessful
+  //   Scheduled -> ExecutionFailed
+  //   Scheduled -> Overdue (Scheduled but scheduledTime outside the execution window, expected earlier)
+  //   Scheduled -> Refunded (refunds when executed and it's overdue)
+  function transactionState(uint256 index) public view returns (MetatransactionState) {
     Metatransaction memory metatransaction = transactionsScheduled[index];
-    return (metatransaction.state == MetatransactionState.Scheduled &&
+    if (
+      metatransaction.state == MetatransactionState.Scheduled &&
       // slither-disable-next-line timestamp
-      (metatransaction.timestamp + (plans[metatransaction.plan].window) < block.timestamp));
+      (metatransaction.timestamp + (plans[metatransaction.plan].window) < block.timestamp)
+    ) {
+      return MetatransactionState.Overdue;
+    } else {
+      return metatransaction.state;
+    }
   }
 
   // slither-disable-next-line low-level-calls
@@ -204,7 +216,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // slither-disable-next-line timestamp
     require((metatransaction.timestamp - plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
 
-    if (isOverdue(index)) {
+    if (transactionState(index) == MetatransactionState.Overdue) {
       refund(index);
       // - penalize the service provider
       return;
