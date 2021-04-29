@@ -195,7 +195,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   //   Scheduled -> ExecutionFailed
   //   Scheduled -> Overdue (Scheduled but scheduledTime outside the execution window, expected earlier)
   //   Scheduled -> Refunded (refunds when executed and it's overdue)
-  
+
   // slither-disable-next-line timestamp
   function transactionState(uint256 index) public view returns (MetatransactionState) {
     Metatransaction memory metatransaction = transactionsScheduled[index];
