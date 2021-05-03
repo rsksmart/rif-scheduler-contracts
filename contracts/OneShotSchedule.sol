@@ -5,13 +5,13 @@ import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
-  IERC677 token;
   address public payee;
   address serviceProvider;
 
   struct Plan {
     uint256 schegulingPrice;
     uint256 window;
+    IERC677 token;
     bool active;
   }
 
@@ -33,7 +33,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
 
   Metatransaction[] private transactionsScheduled;
 
-  event PlanAdded(uint256 indexed index, uint256 price, uint256 window);
+  event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanCancelled(uint256 indexed index);
   event SchedulingsPurchased(address indexed requestor, uint256 plan, uint256 amount);
   event MetatransactionAdded(
@@ -54,22 +54,21 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     _;
   }
 
-  constructor(
-    IERC677 rifToken_,
-    address serviceProvider_,
-    address payee_
-  ) {
+  constructor(address serviceProvider_, address payee_) {
     require(payee_ != address(0x0), 'Payee address cannot be 0x0');
     require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
-    require(address(rifToken_) != address(0x0), 'Token address cannot be 0x0');
-    token = rifToken_;
     serviceProvider = serviceProvider_;
     payee = payee_;
   }
 
-  function addPlan(uint256 price, uint256 window) external onlyProvider {
-    plans.push(Plan(price, window, true));
-    emit PlanAdded(plans.length - 1, price, window);
+  function addPlan(
+    uint256 price,
+    uint256 window,
+    IERC677 token
+  ) external onlyProvider {
+    require(address(token) != address(0x0), 'Token address cannot be 0x0');
+    plans.push(Plan(price, window, token, true));
+    emit PlanAdded(plans.length - 1, price, address(token), window);
   }
 
   function getPlan(uint256 index)
@@ -78,11 +77,13 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     returns (
       uint256 price,
       uint256 window,
+      address token,
       bool active
     )
   {
     price = plans[index].schegulingPrice;
     window = plans[index].window;
+    token = address(plans[index].token);
     active = plans[index].active;
   }
 
@@ -113,6 +114,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
 
   function purchase(uint256 plan, uint256 amount) external {
     doPurchase(msg.sender, plan, amount);
+    IERC677 token = plans[plan].token;
     require(token.transferFrom(msg.sender, address(this), totalPrice(plan, amount)), "Payment did't pass");
   }
 
@@ -121,10 +123,10 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 amount,
     bytes calldata data
   ) external override returns (bool) {
-    require(address(token) == address(msg.sender), 'Bad token');
     uint256 plan;
     uint256 schedulingAmount;
     (plan, schedulingAmount) = abi.decode(data, (uint256, uint256));
+    require(address(plans[plan].token) == address(msg.sender), 'Bad token');
     require(amount == totalPrice(plan, schedulingAmount), "Transferred amount doesn't match total purchase");
     doPurchase(from, plan, schedulingAmount);
     return true;
@@ -240,6 +242,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // The difference when calling gasleft() again is (aprox.) the gas used
     // After executing we do the payout to the service provider:
     // - return the gas used
-    require(token.transfer(payee, plans[metatransaction.plan].schegulingPrice), "Couldn't transfer to payee");
+    require(plans[metatransaction.plan].token.transfer(payee, plans[metatransaction.plan].schegulingPrice), "Couldn't transfer to payee");
   }
 }

@@ -21,13 +21,13 @@ contract('OneShotSchedule', (accounts) => {
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.requestor, 100000, { from: this.contractAdmin })
 
-    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
+    this.oneShotSchedule = await OneShotSchedule.new(this.serviceProvider, this.payee)
     this.counter = await Counter.new()
   })
 
   describe('purchase', () => {
     beforeEach(async () => {
-      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProvider })
+      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
       this.testPurchaseWithValue = async (plan, value) => {
         await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
         await this.oneShotSchedule.purchase(plan, value, { from: this.requestor })

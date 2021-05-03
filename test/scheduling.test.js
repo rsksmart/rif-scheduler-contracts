@@ -24,14 +24,14 @@ contract('OneShotSchedule', (accounts) => {
     this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await this.token.transfer(this.requestor, 100000, { from: this.contractAdmin })
 
-    this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
+    this.oneShotSchedule = await OneShotSchedule.new(this.serviceProvider, this.payee)
     this.counter = await Counter.new()
     this.gas = toBN(await this.counter.inc.estimateGas())
   })
 
   describe('scheduling', () => {
     beforeEach(async () => {
-      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, { from: this.serviceProvider })
+      await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
       this.testScheduleWithValue = async (plan, value, timestamp) => {
         const to = this.counter.address
         const gas = this.gas
