@@ -14,17 +14,15 @@ contract('OneShotSchedule', (accounts) => {
 
   describe('constructor', () => {
     it('should reject if admin is not defined', () =>
-      expectRevert(OneShotSchedule.new(this.token.address, constants.ZERO_ADDRESS, this.payee), 'Service provider address cannot be 0x0'))
+      expectRevert(OneShotSchedule.new(constants.ZERO_ADDRESS, this.payee), 'Service provider address cannot be 0x0'))
     it('should reject if provider is not defined', () =>
-      expectRevert(OneShotSchedule.new(this.token.address, this.serviceProvider, constants.ZERO_ADDRESS), 'Payee address cannot be 0x0'))
-    it('should reject if token is not defined', () =>
-      expectRevert(OneShotSchedule.new(constants.ZERO_ADDRESS, this.serviceProvider, this.payee), 'Token address cannot be 0x0'))
+      expectRevert(OneShotSchedule.new(this.serviceProvider, constants.ZERO_ADDRESS), 'Payee address cannot be 0x0'))
   })
   describe('payee', () => {
     beforeEach(async () => {
       ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
       this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-      this.oneShotSchedule = await OneShotSchedule.new(this.token.address, this.serviceProvider, this.payee)
+      this.oneShotSchedule = await OneShotSchedule.new(this.serviceProvider, this.payee)
     })
     it('should change the payee', async () => {
       this.oneShotSchedule.setPayee(this.anotherAccount, { from: this.serviceProvider })
