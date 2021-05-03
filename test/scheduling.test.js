@@ -70,7 +70,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     await this.testScheduleWithValue(0, toBN(0), nearFuture)
     // try to schedule another
     return expectRevert(
-      this.oneShotSchedule.schedule(0, this.counter.address, incData, this.gas, nearFuture, {
+      this.oneShotSchedule.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), nearFuture, {
         from: this.requestor,
         value: toBN(0),
       }),
