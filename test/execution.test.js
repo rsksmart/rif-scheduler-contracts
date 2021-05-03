@@ -27,7 +27,6 @@ contract('OneShotSchedule - execution', (accounts) => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
     await timeMachine.revertToSnapshot(initialSnapshot)
 
-
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
     this.oneShotSchedule = oneShotSchedule
@@ -86,7 +85,6 @@ contract('OneShotSchedule - execution', (accounts) => {
   describe('success', () => {
     it('executes a listed a metatransaction', () => this.testExecutionWithValue(toBN(0)))
     it('executes a listed a metatransaction with value', () => this.testExecutionWithValue(toBN(1e15)))
-
   })
 
   describe('failing', () => {
@@ -122,7 +120,6 @@ contract('OneShotSchedule - execution', (accounts) => {
       )
       assert.strictEqual(await this.getTxState(0), MetaTransactionState.Refunded, 'Execution not failed')
     })
-
 
     it('should go from scheduled to Overdue when time passes', async () => {
       const timestamp = await time.latest()
