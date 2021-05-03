@@ -114,8 +114,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
 
   function purchase(uint256 plan, uint256 amount) external {
     doPurchase(msg.sender, plan, amount);
-    IERC677 token = plans[plan].token;
-    require(token.transferFrom(msg.sender, address(this), totalPrice(plan, amount)), "Payment did't pass");
+    require(plans[plan].token.transferFrom(msg.sender, address(this), totalPrice(plan, amount)), "Payment did't pass");
   }
 
   function tokenFallback(
