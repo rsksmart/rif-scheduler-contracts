@@ -8,6 +8,10 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   address public payee;
   address serviceProvider;
 
+  Plan[] plans;
+  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
+  Metatransaction[] private transactionsScheduled;
+
   struct Plan {
     uint256 schegulingPrice;
     uint256 window;
@@ -15,9 +19,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     bool active;
   }
 
-  Plan[] plans;
-
-  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
   enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
 
   struct Metatransaction {
@@ -30,8 +31,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 value;
     MetatransactionState state;
   }
-
-  Metatransaction[] private transactionsScheduled;
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanCancelled(uint256 indexed index);
@@ -46,7 +45,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 timestamp,
     uint256 value
   );
-
   event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
 
   modifier onlyProvider() {
@@ -60,6 +58,10 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     serviceProvider = serviceProvider_;
     payee = payee_;
   }
+
+  ///////////
+  // ADMIN //
+  ///////////
 
   function addPlan(
     uint256 price,
@@ -98,6 +100,10 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     payee = payee_;
   }
 
+  //////////////
+  // PURCHASE //
+  //////////////
+
   function totalPrice(uint256 plan, uint256 amount) private view returns (uint256) {
     return amount * plans[plan].schegulingPrice;
   }
@@ -112,11 +118,14 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     emit SchedulingsPurchased(requestor, plan, schedulingAmount);
   }
 
+  // purcahse with ERC-20
   function purchase(uint256 plan, uint256 amount) external {
     doPurchase(msg.sender, plan, amount);
+
     require(plans[plan].token.transferFrom(msg.sender, address(this), totalPrice(plan, amount)), "Payment did't pass");
   }
 
+  // purcahse with ERC-677
   function tokenFallback(
     address from,
     uint256 amount,
@@ -125,11 +134,17 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 plan;
     uint256 schedulingAmount;
     (plan, schedulingAmount) = abi.decode(data, (uint256, uint256));
+
     require(address(plans[plan].token) == address(msg.sender), 'Bad token');
     require(amount == totalPrice(plan, schedulingAmount), "Transferred amount doesn't match total purchase");
+
     doPurchase(from, plan, schedulingAmount);
     return true;
   }
+
+  ////////////////
+  // SCHEDULING //
+  ////////////////
 
   function getRemainingSchedulings(address requestor, uint256 plan) external view returns (uint256) {
     return remainingSchedulings[requestor][plan];
@@ -138,13 +153,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   function spend(address requestor, uint256 plan) private {
     require(remainingSchedulings[requestor][plan] > 0, 'No balance available');
     remainingSchedulings[requestor][plan] -= 1;
-  }
-
-  function refund(uint256 index) private {
-    Metatransaction storage metatransaction = transactionsScheduled[index];
-    remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
-    metatransaction.state = MetatransactionState.Refunded;
-    payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
   function schedule(
@@ -191,9 +199,13 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     );
   }
 
+  ///////////////
+  // EXECUTION //
+  ///////////////
+
   // State transitions for scheduled transaction:
-  //   Scheduled -> ExecutionSuccessful
-  //   Scheduled -> ExecutionFailed
+  //   Scheduled -> ExecutionSuccessful (call was executed in the given time and did not fail)
+  //   Scheduled -> ExecutionFailed (call was executed in the given time but failed)
   //   Scheduled -> Overdue (Scheduled but scheduledTime outside the execution window, expected earlier)
   //   Scheduled -> Refunded (refunds when executed and it's overdue)
 
@@ -202,12 +214,19 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     Metatransaction memory metatransaction = transactionsScheduled[index];
     if (
       metatransaction.state == MetatransactionState.Scheduled &&
-      (metatransaction.timestamp + (plans[metatransaction.plan].window) < block.timestamp)
+      ((metatransaction.timestamp + plans[metatransaction.plan].window) < block.timestamp)
     ) {
       return MetatransactionState.Overdue;
     } else {
       return metatransaction.state;
     }
+  }
+
+  function refund(uint256 index) private {
+    Metatransaction storage metatransaction = transactionsScheduled[index];
+    remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
+    metatransaction.state = MetatransactionState.Refunded;
+    payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
   // slither-disable-next-line low-level-calls
@@ -219,13 +238,10 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     require((metatransaction.timestamp - plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
 
     if (transactionState(index) == MetatransactionState.Overdue) {
-      // - penalize the service provider
       refund(index);
       return;
     }
-    // We can use gasleft() here to charge the consumer for the gas
-    // A contract may hold user's gas and charge it after executing
-    // the transaction
+
     (bool success, bytes memory result) =
       metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
 
@@ -236,11 +252,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     } else {
       metatransaction.state = MetatransactionState.ExecutionFailed;
     }
-    // slither-disable-next-line reentrancy-events
 
-    // The difference when calling gasleft() again is (aprox.) the gas used
-    // After executing we do the payout to the service provider:
-    // - return the gas used
     require(plans[metatransaction.plan].token.transfer(payee, plans[metatransaction.plan].schegulingPrice), "Couldn't transfer to payee");
   }
 }

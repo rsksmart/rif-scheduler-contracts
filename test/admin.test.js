@@ -1,15 +1,13 @@
 const OneShotSchedule = artifacts.require('OneShotSchedule')
-const ERC677 = artifacts.require('ERC677')
 
 const { expectRevert, constants } = require('@openzeppelin/test-helpers')
-const { toBN } = web3.utils
 const assert = require('assert')
-const { formatWithCursor } = require('prettier')
 
-contract('OneShotSchedule', (accounts) => {
+const { setupContracts } = require('./common')
+
+contract('OneShotSchedule - admin', (accounts) => {
   beforeEach(async () => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider, this.anotherAccount] = accounts
-    this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
   })
 
   describe('constructor', () => {
@@ -18,12 +16,14 @@ contract('OneShotSchedule', (accounts) => {
     it('should reject if provider is not defined', () =>
       expectRevert(OneShotSchedule.new(this.serviceProvider, constants.ZERO_ADDRESS), 'Payee address cannot be 0x0'))
   })
+
   describe('payee', () => {
     beforeEach(async () => {
-      ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
-      this.token = await ERC677.new(this.contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-      this.oneShotSchedule = await OneShotSchedule.new(this.serviceProvider, this.payee)
+      const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+      this.token = token
+      this.oneShotSchedule = oneShotSchedule
     })
+
     it('should change the payee', async () => {
       this.oneShotSchedule.setPayee(this.anotherAccount, { from: this.serviceProvider })
       const newPayee = await this.oneShotSchedule.payee()
@@ -35,6 +35,7 @@ contract('OneShotSchedule', (accounts) => {
         this.oneShotSchedule.setPayee(this.anotherAccount, { from: this.anotherAccount }), //call from wrong account
         'Not authorized'
       ))
+
     it('should not change the payee to 0x0', () =>
       expectRevert(
         this.oneShotSchedule.setPayee(constants.ZERO_ADDRESS, { from: this.serviceProvider }), //call from wrong account

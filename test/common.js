@@ -1,3 +1,6 @@
+const OneShotSchedule = artifacts.require('OneShotSchedule')
+const ERC677 = artifacts.require('ERC677')
+
 const { toBN } = web3.utils
 
 const plans = [
@@ -14,5 +17,15 @@ const MetaTransactionState = {
   Cancelled:'5'
 }
 
+const setupContracts = async (contractAdmin, serviceProvider, payee, requestor) => {
+  const token = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
+  const oneShotSchedule = await OneShotSchedule.new(serviceProvider, payee)
+
+  await token.transfer(requestor, 100000, { from: contractAdmin })
+
+  return { token, oneShotSchedule }
+}
+
 exports.plans = plans;
 exports.MetaTransactionState = MetaTransactionState;
+exports.setupContracts = setupContracts;
