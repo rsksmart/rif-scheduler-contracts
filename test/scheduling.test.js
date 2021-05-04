@@ -12,12 +12,12 @@ const incData = getMethodSig('inc()')
 contract('OneShotSchedule - scheduling', (accounts) => {
   beforeEach(async () => {
     this.initialSnapshot = timeMachine.takeSnapshot()
+
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
     this.oneShotSchedule = oneShotSchedule
-
     this.counter = await Counter.new()
 
     await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })

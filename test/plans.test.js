@@ -7,6 +7,7 @@ const { plans, setupContracts } = require('./common.js')
 contract('OneShotSchedule - plans', (accounts) => {
   beforeEach(async () => {
     this.initialSnapshot = timeMachine.takeSnapshot()
+
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
