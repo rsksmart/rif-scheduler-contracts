@@ -4,13 +4,21 @@ import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
-contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
-  address public payee;
-  address serviceProvider;
 
-  Plan[] plans;
-  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
-  Metatransaction[] private transactionsScheduled;
+contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
+
+  enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
+
+  struct Metatransaction {
+    address requestor;
+    uint256 plan;
+    address to;
+    bytes data;
+    uint256 gas;
+    uint256 timestamp;
+    uint256 value;
+    MetatransactionState state;
+  }
 
   struct Plan {
     uint256 schegulingPrice;
@@ -19,18 +27,11 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     bool active;
   }
 
-  enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
-
-  struct Metatransaction {
-    address payable requestor;
-    uint256 plan;
-    address payable to;
-    bytes data;
-    uint256 gas;
-    uint256 timestamp;
-    uint256 value;
-    MetatransactionState state;
-  }
+  address public payee;
+  address serviceProvider;
+  Plan[] plans;
+  Metatransaction[] private transactionsScheduled;
+  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanCancelled(uint256 indexed index);
@@ -167,7 +168,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     spend(msg.sender, plan);
     transactionsScheduled.push(
-      Metatransaction(payable(msg.sender), plan, payable(to), data, gas, executionTime, msg.value, MetatransactionState.Scheduled)
+      Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled)
     );
     emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
@@ -258,7 +259,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     }
     // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) =
-      metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
+      payable(metatransaction.to).call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
 
     // slither-disable-next-line reentrancy-events
     emit MetatransactionExecuted(index, success, result);
