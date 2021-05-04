@@ -8,7 +8,6 @@ const { plans, setupContracts } = require('./common.js')
 contract('OneShotSchedule - purchase', (accounts) => {
   beforeEach(async () => {
     this.initialSnapshot = timeMachine.takeSnapshot()
-
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, token2, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
@@ -41,7 +40,6 @@ contract('OneShotSchedule - purchase', (accounts) => {
   it('should receive RIF tokens to purchase 1 scheduled -  ERC677 way', () => this.testERC677Purchase(0, toBN(1), plans[0].price))
   it('should receive RIF tokens to purchase 10 scheduled -  ERC677 way', () =>
     this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))))
-    
 
   it('should receive RIF tokens to purchase 1 scheduled - ERC20 way', () => this.testPurchaseWithValue(0, toBN(1)))
   it('should receive RIF tokens to purchase 10 scheduled  - ERC20 way', () => this.testPurchaseWithValue(0, toBN(10)))
@@ -52,7 +50,10 @@ contract('OneShotSchedule - purchase', (accounts) => {
 
     it("shouldn't purchase if payed with wrong token  - ERC677", async () => {
       const encodedData = web3.eth.abi.encodeParameters(['uint256', 'uint256'], ['0', '1'])
-      return expectRevert(this.token2.transferAndCall(this.oneShotSchedule.address, toBN(10), encodedData, { from: this.requestor }), 'Bad token')
+      return expectRevert(
+        this.token2.transferAndCall(this.oneShotSchedule.address, toBN(10), encodedData, { from: this.requestor }),
+        'Bad token'
+      )
     })
     it("shouldn't purchase if the plan is cancelled  - ERC20", async () => {
       await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })

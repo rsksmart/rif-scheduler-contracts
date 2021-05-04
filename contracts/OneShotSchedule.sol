@@ -4,9 +4,7 @@ import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
-
 contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
-
   enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
 
   struct Metatransaction {
@@ -167,9 +165,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     spend(msg.sender, plan);
-    transactionsScheduled.push(
-      Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled)
-    );
+    transactionsScheduled.push(Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled));
     emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
 
