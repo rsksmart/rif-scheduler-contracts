@@ -165,7 +165,9 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     spend(msg.sender, plan);
-    transactionsScheduled.push(Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled));
+    transactionsScheduled.push(
+      Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled)
+    );
     emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
 
