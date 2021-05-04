@@ -26,7 +26,6 @@ exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor
   await token.transfer(requestor, 100000, { from: contractAdmin })
   await token2.transfer(requestor, 100000, { from: contractAdmin })
   
-  await time.advanceBlock()
   return { token, token2, oneShotSchedule }
 }
 
