@@ -1,22 +1,14 @@
-const OneShotSchedule = artifacts.require('OneShotSchedule')
-const ERC677 = artifacts.require('ERC677')
-
 const assert = require('assert')
 const { expectEvent, expectRevert, constants } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
-const { toBN } = web3.utils
 
 const { plans, setupContracts } = require('./common.js')
 
-let initialSnapshot = null
-timeMachine.takeSnapshot().then((id) => {
-  initialSnapshot = id
-})
-
 contract('OneShotSchedule - plans', (accounts) => {
   beforeEach(async () => {
+    this.initialSnapshot = timeMachine.takeSnapshot()
+
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
-    await timeMachine.revertToSnapshot(initialSnapshot)
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
@@ -64,4 +56,6 @@ contract('OneShotSchedule - plans', (accounts) => {
     await this.testCancelPlan(this.serviceProvider)
     return expectRevert(this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider }), 'The plan is already inactive')
   })
+
+  afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))
 })

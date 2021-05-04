@@ -46,6 +46,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 value
   );
   event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
+  event MetatransactionCancelled(uint256 indexed index);
 
   modifier onlyProvider() {
     require(address(msg.sender) == serviceProvider, 'Not authorized');
@@ -199,6 +200,21 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     );
   }
 
+  function cancelScheduling(uint256 index) external {
+    Metatransaction storage metatransaction = transactionsScheduled[index];
+    require(metatransaction.state == MetatransactionState.Scheduled, 'Transaction not scheduled');
+    require(msg.sender == metatransaction.requestor, 'Not authorized');
+    // slither-disable-next-line timestamp
+    require(
+      (metatransaction.timestamp - plans[metatransaction.plan].window) >= block.timestamp,
+      'Cannot cancel transaction inside execution window'
+    );
+    metatransaction.state = MetatransactionState.Cancelled;
+    remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
+    emit MetatransactionCancelled(index);
+    payable(metatransaction.requestor).transfer(metatransaction.value);
+  }
+
   ///////////////
   // EXECUTION //
   ///////////////
@@ -229,7 +245,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
-  // slither-disable-next-line low-level-calls
   function execute(uint256 index) external nonReentrant {
     Metatransaction storage metatransaction = transactionsScheduled[index];
 
@@ -241,15 +256,18 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
       refund(index);
       return;
     }
-
+    // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) =
       metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
 
+    // slither-disable-next-line reentrancy-events
     emit MetatransactionExecuted(index, success, result);
 
     if (success) {
+      // slither-disable-next-line reentrancy-eth
       metatransaction.state = MetatransactionState.ExecutionSuccessful;
     } else {
+      // slither-disable-next-line reentrancy-eth
       metatransaction.state = MetatransactionState.ExecutionFailed;
     }
 
