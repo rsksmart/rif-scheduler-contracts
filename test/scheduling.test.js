@@ -6,7 +6,6 @@ const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
 const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow } = require('./common.js')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
-
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
 
