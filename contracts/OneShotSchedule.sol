@@ -28,14 +28,14 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   address public payee;
   address serviceProvider;
   Plan[] plans;
-  Metatransaction[] private transactionsScheduled;
+  mapping(bytes32 => Metatransaction) private transactionsScheduled;
   mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanCancelled(uint256 indexed index);
   event SchedulingsPurchased(address indexed requestor, uint256 plan, uint256 amount);
   event MetatransactionAdded(
-    uint256 indexed index,
+    bytes32 indexed id,
     address indexed requestor,
     uint256 indexed plan,
     address to,
@@ -44,8 +44,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 timestamp,
     uint256 value
   );
-  event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
-  event MetatransactionCancelled(uint256 indexed index);
+  event MetatransactionExecuted(bytes32 indexed id, bool success, bytes result);
+  event MetatransactionCancelled(bytes32 indexed id);
 
   modifier onlyProvider() {
     require(address(msg.sender) == serviceProvider, 'Not authorized');
@@ -146,6 +146,13 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   // SCHEDULING //
   ////////////////
 
+  function hash(Metatransaction memory metaTx) internal pure returns (bytes32) {
+    return
+      keccak256(
+        abi.encode(metaTx.requestor, metaTx.plan, metaTx.to, metaTx.data, metaTx.gas, metaTx.timestamp, metaTx.value, metaTx.state)
+      );
+  }
+
   function getRemainingSchedulings(address requestor, uint256 plan) external view returns (uint256) {
     return remainingSchedulings[requestor][plan];
   }
@@ -165,11 +172,14 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     spend(msg.sender, plan);
-    transactionsScheduled.push(Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled));
-    emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
+    Metatransaction memory newMetaTx =
+      Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled);
+    bytes32 metatransactionId = hash(newMetaTx);
+    transactionsScheduled[metatransactionId] = newMetaTx;
+    emit MetatransactionAdded(metatransactionId, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
 
-  function getSchedule(uint256 index)
+  function getSchedule(bytes32 id)
     external
     view
     returns (
@@ -183,8 +193,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
       MetatransactionState
     )
   {
-    Metatransaction memory metatransaction = transactionsScheduled[index];
-    MetatransactionState state = transactionState(index);
+    Metatransaction memory metatransaction = transactionsScheduled[id];
+    MetatransactionState state = transactionState(id);
     return (
       metatransaction.requestor,
       metatransaction.plan,
@@ -197,8 +207,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     );
   }
 
-  function cancelScheduling(uint256 index) external {
-    Metatransaction storage metatransaction = transactionsScheduled[index];
+  function cancelScheduling(bytes32 id) external {
+    Metatransaction storage metatransaction = transactionsScheduled[id];
     require(metatransaction.state == MetatransactionState.Scheduled, 'Transaction not scheduled');
     require(msg.sender == metatransaction.requestor, 'Not authorized');
     // slither-disable-next-line timestamp
@@ -208,7 +218,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     );
     metatransaction.state = MetatransactionState.Cancelled;
     remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
-    emit MetatransactionCancelled(index);
+    emit MetatransactionCancelled(id);
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
@@ -223,8 +233,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   //   Scheduled -> Refunded (refunds when executed and it's overdue)
 
   // slither-disable-next-line timestamp
-  function transactionState(uint256 index) public view returns (MetatransactionState) {
-    Metatransaction memory metatransaction = transactionsScheduled[index];
+  function transactionState(bytes32 id) public view returns (MetatransactionState) {
+    Metatransaction memory metatransaction = transactionsScheduled[id];
     if (
       metatransaction.state == MetatransactionState.Scheduled &&
       ((metatransaction.timestamp + plans[metatransaction.plan].window) < block.timestamp)
@@ -235,22 +245,22 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     }
   }
 
-  function refund(uint256 index) private {
-    Metatransaction storage metatransaction = transactionsScheduled[index];
+  function refund(bytes32 id) private {
+    Metatransaction storage metatransaction = transactionsScheduled[id];
     remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
     metatransaction.state = MetatransactionState.Refunded;
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
-  function execute(uint256 index) external nonReentrant {
-    Metatransaction storage metatransaction = transactionsScheduled[index];
+  function execute(bytes32 id) external nonReentrant {
+    Metatransaction storage metatransaction = transactionsScheduled[id];
 
     require(metatransaction.state == MetatransactionState.Scheduled, 'Already executed');
     // slither-disable-next-line timestamp
     require((metatransaction.timestamp - plans[metatransaction.plan].window) < block.timestamp, 'Too soon');
 
-    if (transactionState(index) == MetatransactionState.Overdue) {
-      refund(index);
+    if (transactionState(id) == MetatransactionState.Overdue) {
+      refund(id);
       return;
     }
     // slither-disable-next-line low-level-calls
@@ -258,7 +268,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
       payable(metatransaction.to).call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
 
     // slither-disable-next-line reentrancy-events
-    emit MetatransactionExecuted(index, success, result);
+    emit MetatransactionExecuted(id, success, result);
 
     if (success) {
       // slither-disable-next-line reentrancy-eth

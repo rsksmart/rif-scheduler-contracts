@@ -4,7 +4,7 @@ const assert = require('assert')
 const { time, expectRevert } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
-const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow } = require('./common.js')
+const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
 
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
@@ -28,8 +28,9 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const gas = toBN(await this.counter.inc.estimateGas())
       await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
       await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
-      await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
-      const actual = await this.oneShotSchedule.getSchedule(0)
+      const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
+      const metatransactionId = getMetatransactionId(scheduleReceipt)
+      const actual = await this.oneShotSchedule.getSchedule(metatransactionId)
       const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
 
       assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
@@ -42,6 +43,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       assert.strictEqual(actual[7].toString(), MetaTransactionState.Scheduled)
 
       assert.strictEqual(scheduled.toString(10), '0', `Shouldn't have any scheduling`)
+      return metatransactionId
     }
   })
 
@@ -74,25 +76,25 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     )
   })
 
-  describe('Scheduling cancelation', () => {
+  describe('Scheduling cancellation', () => {
     beforeEach(() => {
       this.scheduleOneValid = async (value) => {
         const timestamp = await time.latest()
         const scheduleTime = timestamp.add(outsideWindow(0))
-        await this.testScheduleWithValue(0, value, scheduleTime)
+        return this.testScheduleWithValue(0, value, scheduleTime)
       }
     })
 
     it('should schedule, cancel metatransaction and refund', async () => {
       const valueForTx = toBN(1e15)
-      await this.scheduleOneValid(valueForTx)
+      const txId = await this.scheduleOneValid(valueForTx)
       const requestorBalanceAfterSchedule = toBN(await web3.eth.getBalance(this.requestor))
-      const cancelTx = await this.oneShotSchedule.cancelScheduling(0, { from: this.requestor })
+      const cancelTx = await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
 
-      expectEvent(cancelTx, 'MetatransactionCancelled', { index: toBN(0) })
+      expectEvent(cancelTx, 'MetatransactionCancelled', { id: txId })
 
       //State should be Cancelled
-      const scheduling = await this.oneShotSchedule.getSchedule(0)
+      const scheduling = await this.oneShotSchedule.getSchedule(txId)
       assert.strictEqual(scheduling[7].toString(), MetaTransactionState.Cancelled, 'Not cancelled')
 
       //Scheduling should be refunded
@@ -116,22 +118,22 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     })
 
     it('should fail to cancel a cancelled metatransaction', async () => {
-      await this.scheduleOneValid(toBN(1e15))
-      await this.oneShotSchedule.cancelScheduling(0, { from: this.requestor })
-      return expectRevert(this.oneShotSchedule.cancelScheduling(0, { from: this.requestor }), 'Transaction not scheduled')
+      const txId = await this.scheduleOneValid(toBN(1e15))
+      await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
+      return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor }), 'Transaction not scheduled')
     })
 
     it('should fail to cancel transactions if not the requestor', async () => {
-      await this.scheduleOneValid(toBN(1e15))
-      return expectRevert(this.oneShotSchedule.cancelScheduling(0, { from: this.serviceProvider }), 'Not authorized')
+      const txId = await this.scheduleOneValid(toBN(1e15))
+      return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.serviceProvider }), 'Not authorized')
     })
 
     it('should fail to cancel transactions inside execution window', async () => {
       const timestamp = await time.latest()
       const timestampInsideWindow = timestamp.add(insideWindow(0))
-      await this.testScheduleWithValue(0, toBN(1e15), timestampInsideWindow)
+      const txId = await this.testScheduleWithValue(0, toBN(1e15), timestampInsideWindow)
       return expectRevert(
-        this.oneShotSchedule.cancelScheduling(0, { from: this.requestor }),
+        this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor }),
         'Cannot cancel transaction inside execution window'
       )
     })
