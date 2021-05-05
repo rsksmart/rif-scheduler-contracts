@@ -5,19 +5,15 @@ const { toBN } = web3.utils
 
 const { plans, setupContracts } = require('./common.js')
 
-let initialSnapshot = null
-timeMachine.takeSnapshot().then((id) => {
-  initialSnapshot = id
-})
-
 contract('OneShotSchedule - purchase', (accounts) => {
   beforeEach(async () => {
+    this.initialSnapshot = timeMachine.takeSnapshot()
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
-    await timeMachine.revertToSnapshot(initialSnapshot)
 
-    const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+    const { token, token2, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
     this.oneShotSchedule = oneShotSchedule
+    this.token2 = token2
 
     await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
     this.testPurchaseWithValue = async (plan, value) => {
@@ -51,16 +47,26 @@ contract('OneShotSchedule - purchase', (accounts) => {
   describe('failing purchases', () => {
     it("should reject if payment doesn't match total amount'", () =>
       expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price), "Transferred amount doesn't match total purchase"))
+
+    it("shouldn't purchase if payed with wrong token  - ERC677", async () => {
+      const encodedData = web3.eth.abi.encodeParameters(['uint256', 'uint256'], ['0', '1'])
+      return expectRevert(
+        this.token2.transferAndCall(this.oneShotSchedule.address, toBN(10), encodedData, { from: this.requestor }),
+        'Bad token'
+      )
+    })
     it("shouldn't purchase if the plan is cancelled  - ERC20", async () => {
       await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })
-      await expectRevert(this.testPurchaseWithValue(0, toBN(1)), 'Inactive plan')
+      return expectRevert(this.testPurchaseWithValue(0, toBN(1)), 'Inactive plan')
     })
     it("shouldn't purchase if the plan is cancelled  - ERC677", async () => {
       await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })
-      await expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'Inactive plan')
+      return expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'Inactive plan')
     })
     it("shouldn't purchase if payment fails", () =>
       // making it fail because there's no amount approved
       expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.requestor })))
   })
+
+  afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))
 })

@@ -5,12 +5,18 @@ import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
-  address public payee;
-  address serviceProvider;
+  enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
 
-  Plan[] plans;
-  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
-  Metatransaction[] private transactionsScheduled;
+  struct Metatransaction {
+    address requestor;
+    uint256 plan;
+    address to;
+    bytes data;
+    uint256 gas;
+    uint256 timestamp;
+    uint256 value;
+    MetatransactionState state;
+  }
 
   struct Plan {
     uint256 schegulingPrice;
@@ -19,18 +25,11 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     bool active;
   }
 
-  enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
-
-  struct Metatransaction {
-    address payable requestor;
-    uint256 plan;
-    address payable to;
-    bytes data;
-    uint256 gas;
-    uint256 timestamp;
-    uint256 value;
-    MetatransactionState state;
-  }
+  address public payee;
+  address serviceProvider;
+  Plan[] plans;
+  Metatransaction[] private transactionsScheduled;
+  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanCancelled(uint256 indexed index);
@@ -46,6 +45,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     uint256 value
   );
   event MetatransactionExecuted(uint256 indexed index, bool success, bytes result);
+  event MetatransactionCancelled(uint256 indexed index);
 
   modifier onlyProvider() {
     require(address(msg.sender) == serviceProvider, 'Not authorized');
@@ -165,9 +165,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     // slither-disable-next-line timestamp
     require(block.timestamp <= executionTime, 'Cannot schedule it in the past');
     spend(msg.sender, plan);
-    transactionsScheduled.push(
-      Metatransaction(payable(msg.sender), plan, payable(to), data, gas, executionTime, msg.value, MetatransactionState.Scheduled)
-    );
+    transactionsScheduled.push(Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled));
     emit MetatransactionAdded(transactionsScheduled.length - 1, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
 
@@ -197,6 +195,17 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
       metatransaction.value,
       state
     );
+  }
+
+  function cancelScheduling(uint256 index) external {
+    Metatransaction storage metatransaction = transactionsScheduled[index];
+    require(transactionState(index) == MetatransactionState.Scheduled, 'Transaction not scheduled');
+    require(msg.sender == metatransaction.requestor, 'Not authorized');
+
+    metatransaction.state = MetatransactionState.Cancelled;
+    remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
+    emit MetatransactionCancelled(index);
+    payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
   ///////////////
@@ -229,7 +238,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
-  // slither-disable-next-line low-level-calls
   function execute(uint256 index) external nonReentrant {
     Metatransaction storage metatransaction = transactionsScheduled[index];
 
@@ -241,15 +249,18 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
       refund(index);
       return;
     }
-
+    // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) =
-      metatransaction.to.call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
+      payable(metatransaction.to).call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
 
+    // slither-disable-next-line reentrancy-events
     emit MetatransactionExecuted(index, success, result);
 
     if (success) {
+      // slither-disable-next-line reentrancy-eth
       metatransaction.state = MetatransactionState.ExecutionSuccessful;
     } else {
+      // slither-disable-next-line reentrancy-eth
       metatransaction.state = MetatransactionState.ExecutionFailed;
     }
 

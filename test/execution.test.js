@@ -1,5 +1,3 @@
-const OneShotSchedule = artifacts.require('OneShotSchedule')
-const ERC677 = artifacts.require('ERC677') // payment method
 const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
@@ -8,24 +6,16 @@ const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
 
 const ONE_DAY = 60 * 60 * 24 // in seconds
-const { plans, MetaTransactionState, setupContracts } = require('./common.js')
-
-const insideWindow = (window) => window.sub(toBN(1000))
-const outsideWindow = (window) => window.add(toBN(1000))
+const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow } = require('./common.js')
 
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
 const failData = getMethodSig('fail()')
 
-let initialSnapshot = null
-timeMachine.takeSnapshot().then((id) => {
-  initialSnapshot = id
-})
-
 contract('OneShotSchedule - execution', (accounts) => {
   beforeEach(async () => {
+    this.initialSnapshot = timeMachine.takeSnapshot()
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
-    await timeMachine.revertToSnapshot(initialSnapshot)
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
@@ -53,7 +43,7 @@ contract('OneShotSchedule - execution', (accounts) => {
 
     this.testExecutionWithValue = async (value) => {
       const timestamp = await time.latest()
-      const insideWindowTime = timestamp.add(insideWindow(plans[0].window))
+      const insideWindowTime = timestamp.add(insideWindow(0))
       await this.testScheduleWithValue(0, incData, value, insideWindowTime)
       await time.increaseTo(insideWindowTime)
       await time.advanceBlock()
@@ -90,7 +80,7 @@ contract('OneShotSchedule - execution', (accounts) => {
   describe('failing', () => {
     it('cannot execute twice', async () => {
       await this.testExecutionWithValue(toBN(0))
-      expectRevert(this.oneShotSchedule.execute(0), 'Already executed')
+      return expectRevert(this.oneShotSchedule.execute(0), 'Already executed')
     })
 
     it('cannot execute before timestamp - window', async () => {
@@ -99,7 +89,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
       await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
       // execute before window
-      expectRevert(this.executeWithTime(timestamp.add(toBN(ONE_DAY).sub(outsideWindow(plans[0].window)))), 'Too soon')
+      return expectRevert(this.executeWithTime(timestamp.add(toBN(ONE_DAY).sub(outsideWindow(0)))), 'Too soon')
     })
 
     it('should refund if it executes after timestamp + window', async () => {
@@ -109,7 +99,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
       const requestorBalance = await web3.eth.getBalance(this.requestor)
       // execute after window
-      const receipt = await this.executeWithTime(timestamp.add(toBN(ONE_DAY).add(outsideWindow(plans[0].window))))
+      const receipt = await this.executeWithTime(timestamp.add(toBN(ONE_DAY).add(outsideWindow(0))))
       // this should reflect that it was late
       expectEvent.notEmitted(receipt, 'MetatransactionExecuted')
       assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
@@ -125,7 +115,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const timestamp = await time.latest()
       // scheduled for tomorrow
       const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
-      const executionTimestamp = timestamp.add(toBN(ONE_DAY).add(outsideWindow(plans[0].window)))
+      const executionTimestamp = timestamp.add(toBN(ONE_DAY).add(outsideWindow(0)))
       await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
       assert.strictEqual(await this.getTxState(0), MetaTransactionState.Scheduled, 'Not scheduled')
       await time.increaseTo(executionTimestamp)
@@ -154,7 +144,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const gas = toBN(10)
       const timestamp = await time.latest()
       const from = this.requestor
-      const timestampInsideWindow = timestamp.add(insideWindow(plans[0].window))
+      const timestampInsideWindow = timestamp.add(insideWindow(0))
       await this.token.approve(this.oneShotSchedule.address, plans[0].price, { from })
       await this.oneShotSchedule.purchase(toBN(0), toBN(1), { from })
       await this.oneShotSchedule.schedule(0, to, failData, gas, timestampInsideWindow, { from })
@@ -166,4 +156,6 @@ contract('OneShotSchedule - execution', (accounts) => {
       assert.strictEqual(await this.getTxState(0), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
     })
   })
+
+  afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))
 })
