@@ -132,10 +132,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.testScheduleWithValue(0, toBN(1e15), timestamp)
       await time.increaseTo(timestampOutsideWindow)
       await time.advanceBlock()
-      return expectRevert(
-        this.oneShotSchedule.cancelScheduling(0, { from: this.requestor }),
-        'Transaction not scheduled'
-      )
+      return expectRevert(this.oneShotSchedule.cancelScheduling(0, { from: this.requestor }), 'Transaction not scheduled')
     })
   })
 
