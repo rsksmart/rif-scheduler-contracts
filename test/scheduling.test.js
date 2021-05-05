@@ -45,27 +45,27 @@ contract('OneShotSchedule - scheduling', (accounts) => {
   })
 
   it('schedule a new metatransaction', async () => {
-    const nearFuture = (await time.latest()) + 100
-    return this.testScheduleWithValue(0, toBN(0), nearFuture)
+    const scheduleTime = (await time.latest()).add(toBN(100))
+    return this.testScheduleWithValue(0, toBN(0), scheduleTime)
   })
 
   it('schedule a new metatransaction with value', async () => {
-    const nearFuture = (await time.latest()) + 100
-    return this.testScheduleWithValue(0, toBN(1e15), nearFuture)
+    const scheduleTime = (await time.latest()).add(toBN(100))
+    return this.testScheduleWithValue(0, toBN(1e15), scheduleTime)
   })
 
   it('cannot schedule in the past', async () => {
-    const nearPast = (await time.latest()) - 1000
-    return expectRevert(this.testScheduleWithValue(0, toBN(1e15), nearPast), 'Cannot schedule it in the past')
+    const scheduleTime = (await time.latest()).sub(toBN(1000))
+    return expectRevert(this.testScheduleWithValue(0, toBN(1e15), scheduleTime), 'Cannot schedule it in the past')
   })
 
   it('cannot schedule if requestor has no balance', async () => {
-    const nearFuture = (await time.latest()) + 100
+    const scheduleTime = (await time.latest()).add(toBN(100))
     // buy one, use one
-    await this.testScheduleWithValue(0, toBN(0), nearFuture)
+    await this.testScheduleWithValue(0, toBN(0), scheduleTime)
     // try to schedule another
     return expectRevert(
-      this.oneShotSchedule.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), nearFuture, {
+      this.oneShotSchedule.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), scheduleTime, {
         from: this.requestor,
         value: toBN(0),
       }),
@@ -126,9 +126,9 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     })
 
     it('should fail to cancel transactions after execution window', async () => {
-      const timestamp = await time.latest()
-      const timestampOutsideWindow = timestamp.add(outsideWindow(0))
-      await this.testScheduleWithValue(0, toBN(1e15), timestamp)
+      const scheduleTime = (await time.latest()).add(toBN(100))
+      const timestampOutsideWindow = scheduleTime.add(outsideWindow(0))
+      await this.testScheduleWithValue(0, toBN(1e15), scheduleTime)
       await time.increaseTo(timestampOutsideWindow)
       await time.advanceBlock()
       return expectRevert(this.oneShotSchedule.cancelScheduling(0, { from: this.requestor }), 'Transaction not scheduled')
