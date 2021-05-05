@@ -199,13 +199,9 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
 
   function cancelScheduling(uint256 index) external {
     Metatransaction storage metatransaction = transactionsScheduled[index];
-    require(metatransaction.state == MetatransactionState.Scheduled, 'Transaction not scheduled');
+    require(transactionState(index) == MetatransactionState.Scheduled, 'Transaction not scheduled');
     require(msg.sender == metatransaction.requestor, 'Not authorized');
-    // slither-disable-next-line timestamp
-    require(
-      (metatransaction.timestamp - plans[metatransaction.plan].window) >= block.timestamp,
-      'Cannot cancel transaction inside execution window'
-    );
+
     metatransaction.state = MetatransactionState.Cancelled;
     remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
     emit MetatransactionCancelled(index);

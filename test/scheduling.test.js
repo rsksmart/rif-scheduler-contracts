@@ -126,13 +126,15 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       return expectRevert(this.oneShotSchedule.cancelScheduling(0, { from: this.serviceProvider }), 'Not authorized')
     })
 
-    it('should fail to cancel transactions inside execution window', async () => {
+    it('should fail to cancel transactions after execution window', async () => {
       const timestamp = await time.latest()
-      const timestampInsideWindow = timestamp.add(insideWindow(0))
-      await this.testScheduleWithValue(0, toBN(1e15), timestampInsideWindow)
+      const timestampOutsideWindow = timestamp.add(outsideWindow(0))
+      await this.testScheduleWithValue(0, toBN(1e15), timestamp)
+      await time.increaseTo(timestampOutsideWindow)
+      await time.advanceBlock()
       return expectRevert(
         this.oneShotSchedule.cancelScheduling(0, { from: this.requestor }),
-        'Cannot cancel transaction inside execution window'
+        'Transaction not scheduled'
       )
     })
   })
