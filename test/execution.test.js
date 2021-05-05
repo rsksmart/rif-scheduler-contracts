@@ -6,7 +6,7 @@ const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
 
 const ONE_DAY = 60 * 60 * 24 // in seconds
-const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow } = require('./common.js')
+const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
 
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
@@ -33,25 +33,26 @@ contract('OneShotSchedule - execution', (accounts) => {
       const gas = toBN(await this.counter.inc.estimateGas())
       await this.token.approve(this.oneShotSchedule.address, plans[plan].price, { from })
       await this.oneShotSchedule.purchase(plan, toBN(1), { from })
-      return this.oneShotSchedule.schedule(plan, to, data, gas, timestamp, { from, value })
+      const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, data, gas, timestamp, { from, value })
+      return getMetatransactionId(scheduleReceipt)
     }
-    this.executeWithTime = async (executionTimestamp) => {
+    this.executeWithTime = async (txId, executionTimestamp) => {
       await time.increaseTo(executionTimestamp)
       await time.advanceBlock()
-      return this.oneShotSchedule.execute(0)
+      return this.oneShotSchedule.execute(txId)
     }
 
     this.testExecutionWithValue = async (value) => {
       const timestamp = await time.latest()
       const insideWindowTime = timestamp.add(insideWindow(0))
-      await this.testScheduleWithValue(0, incData, value, insideWindowTime)
+      const txId = await this.testScheduleWithValue(0, incData, value, insideWindowTime)
       await time.increaseTo(insideWindowTime)
       await time.advanceBlock()
       const initialPayeeBalance = await this.token.balanceOf(this.payee)
       const initialContractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
-      await this.oneShotSchedule.execute(0)
+      await this.oneShotSchedule.execute(txId)
       // Transaction executed status
-      assert.strictEqual(await this.getTxState(0), MetaTransactionState.ExecutionSuccessful, 'Execution failed')
+      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.ExecutionSuccessful, 'Execution failed')
       // Transaction executed on contract
       assert.strictEqual(await this.counter.count().then((r) => r.toString()), '1', 'Counter difference')
       // Value transferred to contract
@@ -69,6 +70,7 @@ contract('OneShotSchedule - execution', (accounts) => {
         expectedContractBalance.toString(),
         'wrong contract balance'
       )
+      return txId
     }
   })
 
@@ -79,27 +81,27 @@ contract('OneShotSchedule - execution', (accounts) => {
 
   describe('failing', () => {
     it('cannot execute twice', async () => {
-      await this.testExecutionWithValue(toBN(0))
-      return expectRevert(this.oneShotSchedule.execute(0), 'Already executed')
+      const txId = await this.testExecutionWithValue(toBN(0))
+      return expectRevert(this.oneShotSchedule.execute(txId), 'Already executed')
     })
 
     it('cannot execute before timestamp - window', async () => {
       const timestamp = await time.latest()
       // scheduled for tomorrow
       const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
-      await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
+      const txId = await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
       // execute before window
-      return expectRevert(this.executeWithTime(timestamp.add(toBN(ONE_DAY).sub(outsideWindow(0)))), 'Too soon')
+      return expectRevert(this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).sub(outsideWindow(0)))), 'Too soon')
     })
 
     it('should refund if it executes after timestamp + window', async () => {
       const timestamp = await time.latest()
       // scheduled for tomorrow
       const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
-      await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
+      const txId = await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
       const requestorBalance = await web3.eth.getBalance(this.requestor)
       // execute after window
-      const receipt = await this.executeWithTime(timestamp.add(toBN(ONE_DAY).add(outsideWindow(0))))
+      const receipt = await this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).add(outsideWindow(0))))
       // this should reflect that it was late
       expectEvent.notEmitted(receipt, 'MetatransactionExecuted')
       assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
@@ -108,7 +110,7 @@ contract('OneShotSchedule - execution', (accounts) => {
         '1',
         'Schedule not refunded'
       )
-      assert.strictEqual(await this.getTxState(0), MetaTransactionState.Refunded, 'Execution not failed')
+      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.Refunded, 'Execution not failed')
     })
 
     it('should go from scheduled to Overdue when time passes', async () => {
@@ -116,11 +118,11 @@ contract('OneShotSchedule - execution', (accounts) => {
       // scheduled for tomorrow
       const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
       const executionTimestamp = timestamp.add(toBN(ONE_DAY).add(outsideWindow(0)))
-      await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
-      assert.strictEqual(await this.getTxState(0), MetaTransactionState.Scheduled, 'Not scheduled')
+      const txId = await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
+      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.Scheduled, 'Not scheduled')
       await time.increaseTo(executionTimestamp)
       await time.advanceBlock()
-      assert.strictEqual(await this.getTxState(0), MetaTransactionState.Overdue, 'Not overdue')
+      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.Overdue, 'Not overdue')
     })
   })
 
@@ -128,15 +130,16 @@ contract('OneShotSchedule - execution', (accounts) => {
     it('due to revert in called contract', async () => {
       const timestamp = await time.latest()
       // scheduled for tomorrow
-      await this.testScheduleWithValue(0, failData, toBN(0), timestamp.add(toBN(10)))
-      const tx = await this.oneShotSchedule.execute(0)
+      const txId = await this.testScheduleWithValue(0, failData, toBN(0), timestamp.add(toBN(10)))
+      const tx = await this.oneShotSchedule.execute(txId)
       const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
       assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
       expectEvent(tx, 'MetatransactionExecuted', {
-        index: toBN(0),
+        id: txId,
         success: false,
       })
-      assert.strictEqual(await this.getTxState(0), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
+      console.log(txId, await this.getTxState(txId))
+      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
     })
 
     it('due to insufficient gas in called contract', async () => {
@@ -147,13 +150,14 @@ contract('OneShotSchedule - execution', (accounts) => {
       const timestampInsideWindow = timestamp.add(insideWindow(0))
       await this.token.approve(this.oneShotSchedule.address, plans[0].price, { from })
       await this.oneShotSchedule.purchase(toBN(0), toBN(1), { from })
-      await this.oneShotSchedule.schedule(0, to, failData, gas, timestampInsideWindow, { from })
-      const receipt = await this.oneShotSchedule.execute(0)
+      const scheduleReceipt = await this.oneShotSchedule.schedule(0, to, failData, gas, timestampInsideWindow, { from })
+      const txId = getMetatransactionId(scheduleReceipt)
+      const receipt = await this.oneShotSchedule.execute(txId)
       expectEvent(receipt, 'MetatransactionExecuted', {
-        index: toBN(0),
+        id: txId,
         success: false,
       })
-      assert.strictEqual(await this.getTxState(0), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
+      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
     })
   })
 
