@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 
 contract OneShotSchedule is IERC677TransferReceiver, Initializable {
   enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
@@ -55,7 +55,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable {
 
   modifier nonReentrant() {
     // On the first call to nonReentrant, _notEntered will be true
-    require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+    require(_status != _ENTERED, 'ReentrancyGuard: reentrant call');
     _status = _ENTERED;
     _;
     _status = _NOT_ENTERED;
