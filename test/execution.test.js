@@ -138,7 +138,6 @@ contract('OneShotSchedule - execution', (accounts) => {
         id: txId,
         success: false,
       })
-      console.log(txId, await this.getTxState(txId))
       assert.strictEqual(await this.getTxState(txId), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
     })
 
