@@ -20,9 +20,9 @@ jobs:
         node-version: 10.x
 
     - name: Slither Static Analysis
-      uses: luisfontes19/slither-static-analysis-action@v0.3.3
+      uses: luisfontes19/slither-static-analysis-action@v0.3.2
       with:
-        slither-version: '0.7.0'
+        slither-version: '0.7.1'
         run-npm-install: true
         high-threshold: 1
         medium-threshold: 1
