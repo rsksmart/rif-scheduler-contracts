@@ -21,7 +21,8 @@ exports.MetaTransactionState = {
 exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor) => {
   const token = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
   const token2 = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RDOC', 'DOC')
-  const oneShotSchedule = await OneShotSchedule.new(serviceProvider, payee)
+  const oneShotSchedule = await OneShotSchedule.new()
+  await oneShotSchedule.initialize(serviceProvider, payee)
 
   await token.transfer(requestor, 100000, { from: contractAdmin })
   await token2.transfer(requestor, 100000, { from: contractAdmin })
