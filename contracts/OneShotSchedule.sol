@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
+contract OneShotSchedule is IERC677TransferReceiver, Initializable {
   enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
 
   struct Metatransaction {
@@ -47,16 +48,31 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
   event MetatransactionExecuted(bytes32 indexed id, bool success, bytes result);
   event MetatransactionCancelled(bytes32 indexed id);
 
+  /////////// Reentrancy check /////
+  uint256 private constant _NOT_ENTERED = 1;
+  uint256 private constant _ENTERED = 2;
+  uint256 private _status;
+
+  modifier nonReentrant() {
+    // On the first call to nonReentrant, _notEntered will be true
+    require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+    _status = _ENTERED;
+    _;
+    _status = _NOT_ENTERED;
+  }
+  ///////////
+
   modifier onlyProvider() {
     require(address(msg.sender) == serviceProvider, 'Not authorized');
     _;
   }
 
-  constructor(address serviceProvider_, address payee_) {
+  function initialize(address serviceProvider_, address payee_) public initializer {
     require(payee_ != address(0x0), 'Payee address cannot be 0x0');
     require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
     serviceProvider = serviceProvider_;
     payee = payee_;
+    _status = _NOT_ENTERED;
   }
 
   ///////////

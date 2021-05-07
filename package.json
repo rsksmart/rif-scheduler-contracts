@@ -13,15 +13,16 @@
   "license": "ISC",
   "devDependencies": {
     "@openzeppelin/test-helpers": "^0.5.10",
+    "@openzeppelin/truffle-upgrades": "^1.6.1",
     "@truffle/hdwallet-provider": "^1.2.6",
     "ganache-time-traveler": "^1.0.15",
     "prettier": "^2.2.1",
-    "prettier-plugin-solidity": "*",
+    "prettier-plugin-solidity": "^1.0.0-beta.10",
     "solidity-coverage": "^0.7.16",
     "truffle": "^5.3.1"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.0.0",
+    "@openzeppelin/contracts-upgradeable": "^4.1.0",
     "@rsksmart/erc677": "^2.0.0"
   }
 }

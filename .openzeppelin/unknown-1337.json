@@ -1,0 +1,178 @@
+{
+  "manifestVersion": "3.2",
+  "impls": {
+    "c2932aa97d215d6d6706f7ca6f40a36652c353102a8906ffbf319d8b12b6a7c6": {
+      "address": "0xf25cbd7F02D6D2DaF61f6b8131dcbC58c128F77C",
+      "txHash": "0x7d6f3e507d2c27763382fda29dae89605ad7b590e85aec7f8a24dd133636d64c",
+      "layout": {
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:23"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "../@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:28"
+          },
+          {
+            "contract": "OneShotSchedule",
+            "label": "payee",
+            "type": "t_address",
+            "src": "OneShotSchedule.sol:29"
+          },
+          {
+            "contract": "OneShotSchedule",
+            "label": "serviceProvider",
+            "type": "t_address",
+            "src": "OneShotSchedule.sol:30"
+          },
+          {
+            "contract": "OneShotSchedule",
+            "label": "plans",
+            "type": "t_array(t_struct(Plan)105_storage)dyn_storage",
+            "src": "OneShotSchedule.sol:31"
+          },
+          {
+            "contract": "OneShotSchedule",
+            "label": "transactionsScheduled",
+            "type": "t_mapping(t_bytes32,t_struct(Metatransaction)95_storage)",
+            "src": "OneShotSchedule.sol:32"
+          },
+          {
+            "contract": "OneShotSchedule",
+            "label": "remainingSchedulings",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_uint256))",
+            "src": "OneShotSchedule.sol:33"
+          },
+          {
+            "contract": "OneShotSchedule",
+            "label": "_status",
+            "type": "t_uint256",
+            "src": "OneShotSchedule.sol:54"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address"
+          },
+          "t_array(t_struct(Plan)105_storage)dyn_storage": {
+            "label": "struct OneShotSchedule.Plan[]"
+          },
+          "t_struct(Plan)105_storage": {
+            "label": "struct OneShotSchedule.Plan",
+            "members": [
+              {
+                "label": "schegulingPrice",
+                "type": "t_uint256"
+              },
+              {
+                "label": "window",
+                "type": "t_uint256"
+              },
+              {
+                "label": "token",
+                "type": "t_contract(IERC677)1845"
+              },
+              {
+                "label": "active",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_contract(IERC677)1845": {
+            "label": "contract IERC677"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_bytes32,t_struct(Metatransaction)95_storage)": {
+            "label": "mapping(bytes32 => struct OneShotSchedule.Metatransaction)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(Metatransaction)95_storage": {
+            "label": "struct OneShotSchedule.Metatransaction",
+            "members": [
+              {
+                "label": "requestor",
+                "type": "t_address"
+              },
+              {
+                "label": "plan",
+                "type": "t_uint256"
+              },
+              {
+                "label": "to",
+                "type": "t_address"
+              },
+              {
+                "label": "data",
+                "type": "t_bytes_storage"
+              },
+              {
+                "label": "gas",
+                "type": "t_uint256"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint256"
+              },
+              {
+                "label": "value",
+                "type": "t_uint256"
+              },
+              {
+                "label": "state",
+                "type": "t_enum(MetatransactionState)77"
+              }
+            ]
+          },
+          "t_bytes_storage": {
+            "label": "bytes"
+          },
+          "t_enum(MetatransactionState)77": {
+            "label": "enum OneShotSchedule.MetatransactionState",
+            "members": [
+              "Scheduled",
+              "ExecutionSuccessful",
+              "ExecutionFailed",
+              "Overdue",
+              "Refunded",
+              "Cancelled"
+            ]
+          },
+          "t_mapping(t_address,t_mapping(t_uint256,t_uint256))": {
+            "label": "mapping(address => mapping(uint256 => uint256))"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)"
+          }
+        }
+      }
+    }
+  },
+  "proxies": [
+    {
+      "address": "0x483398E11BA504D5720610328483F8717864938D",
+      "kind": "transparent",
+      "txHash": "0xf76c45f8cc2fc44d84dd2adfe6c52f9e5142d1bc246098162ee0a9d1cc1b6de3"
+    },
+    {
+      "address": "0xD8924d0C2975D0061F6eCa8B1754dE856C05c591",
+      "kind": "transparent",
+      "txHash": "0x6cc5acbc69f0a2abc69eea0f825be631d57a156d668accdbe1d6247ff5d000c9"
+    }
+  ],
+  "admin": {
+    "address": "0x332f558dE496146a693C9C3199909821eBfb5B54",
+    "txHash": "0xe1a3e955d9ff38b5764fa4923300f5b96ae3744957b089f4f274fc68f7f48103"
+  }
+}
