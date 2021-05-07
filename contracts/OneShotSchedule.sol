@@ -243,7 +243,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable {
   //   Scheduled -> ExecutionFailed (call was executed in the given time but failed)
   //   Scheduled -> Overdue (Scheduled but scheduledTime outside the execution window, expected earlier)
   //   Scheduled -> Refunded (refunds when executed and it's overdue)
-  
+
   // slither-disable-next-line timestamp
   function transactionState(bytes32 id) public view returns (MetatransactionState) {
     Metatransaction memory metatransaction = transactionsScheduled[id];
@@ -264,7 +264,6 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable {
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
-
   // The nonReentrant prevents this contract to be call again when the low level call is executed
   // slither-disable-next-line timestamp
   function execute(bytes32 id) external nonReentrant {
@@ -279,7 +278,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable {
       return;
     }
     // The contract makes an external call to execute the scheduled transaction on the specified contract.
-    // It needs to get the execution result before emitting the event and changing the matatransaction state. 
+    // It needs to get the execution result before emitting the event and changing the matatransaction state.
     // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) =
       payable(metatransaction.to).call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
