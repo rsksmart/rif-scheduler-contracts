@@ -8,13 +8,14 @@ const { setupContracts } = require('./common')
 contract('OneShotSchedule - admin', (accounts) => {
   beforeEach(async () => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider, this.anotherAccount] = accounts
+    this.oneShotSchedule = await OneShotSchedule.new()
   })
 
   describe('constructor', () => {
     it('should reject if admin is not defined', () =>
-      expectRevert(OneShotSchedule.new(constants.ZERO_ADDRESS, this.payee), 'Service provider address cannot be 0x0'))
+      expectRevert(this.oneShotSchedule.initialize(constants.ZERO_ADDRESS, this.payee), 'Service provider address cannot be 0x0'))
     it('should reject if provider is not defined', () =>
-      expectRevert(OneShotSchedule.new(this.serviceProvider, constants.ZERO_ADDRESS), 'Payee address cannot be 0x0'))
+      expectRevert(this.oneShotSchedule.initialize(this.serviceProvider, constants.ZERO_ADDRESS), 'Payee address cannot be 0x0'))
   })
 
   describe('payee', () => {
@@ -25,9 +26,13 @@ contract('OneShotSchedule - admin', (accounts) => {
     })
 
     it('should change the payee', async () => {
-      this.oneShotSchedule.setPayee(this.anotherAccount, { from: this.serviceProvider })
+      await this.oneShotSchedule.setPayee(this.anotherAccount, { from: this.serviceProvider })
       const newPayee = await this.oneShotSchedule.payee()
       assert.strictEqual(newPayee.toString(), this.anotherAccount, 'New payee not assigned')
+      // put it back
+      await this.oneShotSchedule.setPayee(this.payee, { from: this.serviceProvider })
+      const revertedPayee = await this.oneShotSchedule.payee()
+      assert.strictEqual(revertedPayee.toString(), this.payee, 'New payee change not reverted')
     })
 
     it('should not change the payee if not the service provider', () =>

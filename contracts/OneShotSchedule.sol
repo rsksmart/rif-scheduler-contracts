@@ -3,8 +3,10 @@ pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 
-contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
+contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGuardUpgradeable {
   enum MetatransactionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
 
   struct Metatransaction {
@@ -52,7 +54,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     _;
   }
 
-  constructor(address serviceProvider_, address payee_) {
+  function initialize(address serviceProvider_, address payee_) public initializer {
+    __ReentrancyGuard_init();
     require(payee_ != address(0x0), 'Payee address cannot be 0x0');
     require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
     serviceProvider = serviceProvider_;
@@ -248,6 +251,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
 
+  // The nonReentrant prevents this contract to be call again when the low level call is executed
+  // slither-disable-next-line timestamp
   function execute(bytes32 id) external nonReentrant {
     Metatransaction storage metatransaction = transactionsScheduled[id];
 
@@ -259,6 +264,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard {
       refund(id);
       return;
     }
+    // The contract makes an external call to execute the scheduled transaction on the specified contract.
+    // It needs to get the execution result before emitting the event and changing the matatransaction state.
     // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) =
       payable(metatransaction.to).call{ gas: metatransaction.gas, value: metatransaction.value }(metatransaction.data);
