@@ -4,7 +4,7 @@ const assert = require('assert')
 const { time, expectRevert } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
-const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
+const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
@@ -39,7 +39,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       assert.strictEqual(actual[4].toString(), gas.toString())
       assert.strictEqual(actual[5].toString(), timestamp.toString())
       assert.strictEqual(actual[6].toString(), value.toString())
-      assert.strictEqual(actual[7].toString(), MetaTransactionState.Scheduled)
+      assert.strictEqual(actual[7].toString(), ExecutionState.Scheduled)
 
       assert.strictEqual(scheduled.toString(10), '0', `Shouldn't have any scheduling`)
       return metatransactionId
@@ -94,14 +94,10 @@ contract('OneShotSchedule - scheduling', (accounts) => {
 
       //State should be Cancelled
       const scheduling = await this.oneShotSchedule.getSchedule(txId)
-      assert.strictEqual(scheduling[7].toString(), MetaTransactionState.Cancelled, 'Not cancelled')
+      assert.strictEqual(scheduling[7].toString(), ExecutionState.Cancelled, 'Not cancelled')
 
       //Scheduling should be refunded
-      assert.strictEqual(
-        (await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(),
-        '1',
-        'Schedule not refunded'
-      )
+      assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(), '1', 'Schedule not refunded')
 
       //Value should be returned from contract to requestor
       //Final contract balance should be 0

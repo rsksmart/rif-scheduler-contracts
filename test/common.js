@@ -9,7 +9,7 @@ const plans = [
   { price: toBN(4), window: toBN(300) },
 ]
 
-exports.MetaTransactionState = {
+exports.ExecutionState = {
   Scheduled: '0',
   ExecutionSuccessful: '1',
   ExecutionFailed: '2',

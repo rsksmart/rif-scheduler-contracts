@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 
@@ -131,12 +130,9 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   ////////////////
 
   // slither-disable-next-line timestamp
-  function transactionState(bytes32 id) public view returns (ExecutionState) {
+  function getState(bytes32 id) public view returns (ExecutionState) {
     Execution memory execution = executions[id];
-    if (
-      execution.state == ExecutionState.Scheduled &&
-      ((execution.timestamp + plans[execution.plan].window) < block.timestamp)
-    ) {
+    if (execution.state == ExecutionState.Scheduled && ((execution.timestamp + plans[execution.plan].window) < block.timestamp)) {
       return ExecutionState.Overdue;
     } else {
       return execution.state;
@@ -172,8 +168,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     // slither-disable-next-line timestamp
     require(block.timestamp <= timestamp, 'Cannot schedule it in the past');
 
-    Execution memory execution =
-      Execution(msg.sender, plan, to, data, gas, timestamp, msg.value, ExecutionState.Scheduled);
+    Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, msg.value, ExecutionState.Scheduled);
     bytes32 id = hash(execution);
     executions[id] = execution;
     emit ExecutionRequested(id);
@@ -194,23 +189,14 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     )
   {
     Execution memory execution = executions[id];
-    ExecutionState state = transactionState(id);
-    return (
-      execution.requestor,
-      execution.plan,
-      execution.to,
-      execution.data,
-      execution.gas,
-      execution.timestamp,
-      execution.value,
-      state
-    );
+    ExecutionState state = getState(id);
+    return (execution.requestor, execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value, state);
   }
 
   function cancelScheduling(bytes32 id) external {
     Execution storage execution = executions[id];
 
-    require(transactionState(id) == ExecutionState.Scheduled, 'Transaction not scheduled');
+    require(getState(id) == ExecutionState.Scheduled, 'Transaction not scheduled');
     require(msg.sender == execution.requestor, 'Not authorized');
 
     execution.state = ExecutionState.Cancelled;
@@ -238,7 +224,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     // slither-disable-next-line timestamp
     require((execution.timestamp - plans[execution.plan].window) < block.timestamp, 'Too soon');
 
-    if (transactionState(id) == ExecutionState.Overdue) {
+    if (getState(id) == ExecutionState.Overdue) {
       refund(id);
       return;
     }
@@ -246,8 +232,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     // The contract makes an external call to execute the scheduled transaction on the specified contract.
     // It needs to get the execution result before emitting the event and changing the matatransaction state.
     // slither-disable-next-line low-level-calls
-    (bool success, bytes memory result) =
-      payable(execution.to).call{ gas: execution.gas, value: execution.value }(execution.data);
+    (bool success, bytes memory result) = payable(execution.to).call{ gas: execution.gas, value: execution.value }(execution.data);
 
     // slither-disable-next-line reentrancy-events
     emit Executed(id, success, result);

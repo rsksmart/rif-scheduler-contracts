@@ -6,7 +6,7 @@ const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
 
 const ONE_DAY = 60 * 60 * 24 // in seconds
-const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
+const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
 
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
@@ -23,7 +23,7 @@ contract('OneShotSchedule - execution', (accounts) => {
 
     this.counter = await Counter.new()
 
-    this.getTxState = (transaction) => this.oneShotSchedule.transactionState(transaction).then((state) => state.toString())
+    this.getTxState = (transaction) => this.oneShotSchedule.getState(transaction).then((state) => state.toString())
 
     await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
 
@@ -52,7 +52,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const initialContractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
       await this.oneShotSchedule.execute(txId)
       // Transaction executed status
-      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.ExecutionSuccessful, 'Execution failed')
+      assert.strictEqual(await this.getTxState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
       // Transaction executed on contract
       assert.strictEqual(await this.counter.count().then((r) => r.toString()), '1', 'Counter difference')
       // Value transferred to contract
@@ -105,12 +105,8 @@ contract('OneShotSchedule - execution', (accounts) => {
       // this should reflect that it was late
       expectEvent.notEmitted(receipt, 'Executed')
       assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
-      assert.strictEqual(
-        (await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(),
-        '1',
-        'Schedule not refunded'
-      )
-      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.Refunded, 'Execution not failed')
+      assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(), '1', 'Schedule not refunded')
+      assert.strictEqual(await this.getTxState(txId), ExecutionState.Refunded, 'Execution not failed')
     })
 
     it('should go from scheduled to Overdue when time passes', async () => {
@@ -119,10 +115,10 @@ contract('OneShotSchedule - execution', (accounts) => {
       const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
       const executionTimestamp = timestamp.add(toBN(ONE_DAY).add(outsideWindow(0)))
       const txId = await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
-      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.Scheduled, 'Not scheduled')
+      assert.strictEqual(await this.getTxState(txId), ExecutionState.Scheduled, 'Not scheduled')
       await time.increaseTo(executionTimestamp)
       await time.advanceBlock()
-      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.Overdue, 'Not overdue')
+      assert.strictEqual(await this.getTxState(txId), ExecutionState.Overdue, 'Not overdue')
     })
   })
 
@@ -138,7 +134,7 @@ contract('OneShotSchedule - execution', (accounts) => {
         id: txId,
         success: false,
       })
-      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
+      assert.strictEqual(await this.getTxState(txId), ExecutionState.ExecutionFailed, 'Execution did not fail')
     })
 
     it('due to insufficient gas in called contract', async () => {
@@ -156,7 +152,7 @@ contract('OneShotSchedule - execution', (accounts) => {
         id: txId,
         success: false,
       })
-      assert.strictEqual(await this.getTxState(txId), MetaTransactionState.ExecutionFailed, 'Execution did not fail')
+      assert.strictEqual(await this.getTxState(txId), ExecutionState.ExecutionFailed, 'Execution did not fail')
     })
   })
 
