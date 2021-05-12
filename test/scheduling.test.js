@@ -4,7 +4,7 @@ const assert = require('assert')
 const { time, expectRevert } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
-const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
+const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId } = require('./common.js')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
@@ -28,7 +28,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
       await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
       const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
-      const metatransactionId = getMetatransactionId(scheduleReceipt)
+      const metatransactionId = getExecutionId(scheduleReceipt)
       const actual = await this.oneShotSchedule.getSchedule(metatransactionId)
       const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
 

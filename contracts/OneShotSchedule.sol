@@ -7,7 +7,7 @@ import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 
 contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGuardUpgradeable {
   enum ExecutionState { Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
-  // State transitions for scheduled transaction:
+  // State transitions for scheduled executions:
   //   Scheduled -> Cancelled (requestor cancelled execution)
   //   Scheduled -> ExecutionSuccessful (call was executed in the given time and did not fail)
   //   Scheduled -> ExecutionFailed (call was executed in the given time but failed)

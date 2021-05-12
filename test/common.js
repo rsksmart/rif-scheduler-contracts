@@ -32,7 +32,7 @@ exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor
 exports.insideWindow = (plan) => plans[plan].window.sub(toBN(1000))
 exports.outsideWindow = (plan) => plans[plan].window.add(toBN(1000))
 
-exports.getMetatransactionId = (tx) => {
+exports.getExecutionId = (tx) => {
   const log = tx.receipt.logs.find((l) => l.event === 'ExecutionRequested')
   return log.args.id
 }
