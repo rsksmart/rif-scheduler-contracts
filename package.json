@@ -1,16 +1,32 @@
 {
-  "name": "rif-scheduler-contracts-poc",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "@rsksmart/rif-scheduler-contracts",
+  "version": "0.0.1",
+  "description": "RIF Scheduler contracts",
+  "files": [
+    "/contracts",
+    "!/contracts/Migrations.sol"
+  ],
   "scripts": {
     "test": "npx truffle test",
     "coverage": "npx truffle run coverage",
-    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.test.js'",
-    "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.test.js'"
+    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js'",
+    "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js'"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rnsdomains/rns-resolver.git"
+  },
+  "keywords": [
+    "rsk",
+    "rif",
+    "scheduler"
+  ],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/contracts-upgradeable": "^4.1.0",
+    "@rsksmart/erc677": "^2.0.0"
+  },
   "devDependencies": {
     "@openzeppelin/test-helpers": "^0.5.10",
     "@openzeppelin/truffle-upgrades": "^1.6.1",
@@ -20,9 +36,5 @@
     "prettier-plugin-solidity": "^1.0.0-beta.10",
     "solidity-coverage": "^0.7.16",
     "truffle": "^5.3.1"
-  },
-  "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^4.1.0",
-    "@rsksmart/erc677": "^2.0.0"
   }
 }
