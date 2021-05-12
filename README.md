@@ -59,3 +59,8 @@ First install [`slither`](https://github.com/crytic/slither) and run:
 ```
 slither .
 ```
+
+## Acknowledgment
+Scheduled transaction times are not exact, they will be performed inside an execution window depending on the plan.
+The contract also uses `block.timestamp` to stablish if the scheduled transaction should be executed and/or refunded,
+which is subject to manipulation for short time periods.
