@@ -22,11 +22,11 @@ contract('OneShotSchedule - plans', (accounts) => {
       })
     }
 
-    this.testCancelPlan = async (account) => {
+    this.testRemovePlan = async (account) => {
       await this.testAddPlan(plans[0].price, plans[0].window, this.token.address, account)
       const planActive = await this.oneShotSchedule.getPlan(0)
       assert.strictEqual(planActive.active, true, `The plan is not active`)
-      await this.oneShotSchedule.cancelPlan(0, { from: account })
+      await this.oneShotSchedule.removePlan(0, { from: account })
       const planInactive = await this.oneShotSchedule.getPlan(0)
       assert.strictEqual(planInactive.active, false, `Didn't cancel the plan`)
     }
@@ -47,13 +47,13 @@ contract('OneShotSchedule - plans', (accounts) => {
   it('should reject plans added by other users', () =>
     expectRevert(this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.requestor), 'Not authorized'))
 
-  it('should cancel a plan', () => this.testCancelPlan(this.serviceProvider))
+  it('should cancel a plan', () => this.testRemovePlan(this.serviceProvider))
 
-  it("should reject to cancel a plan if it's not the provider", () => expectRevert(this.testCancelPlan(this.requestor), 'Not authorized'))
+  it("should reject to cancel a plan if it's not the provider", () => expectRevert(this.testRemovePlan(this.requestor), 'Not authorized'))
 
   it('should reject to cancel if the plan is not active', async () => {
-    await this.testCancelPlan(this.serviceProvider)
-    return expectRevert(this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider }), 'The plan is already inactive')
+    await this.testRemovePlan(this.serviceProvider)
+    return expectRevert(this.oneShotSchedule.removePlan(0, { from: this.serviceProvider }), 'The plan is already inactive')
   })
 
   afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))

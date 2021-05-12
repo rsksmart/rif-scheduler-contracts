@@ -27,15 +27,19 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     bool active;
   }
 
-  address public payee;
   address serviceProvider;
+  address public payee;
+
   Plan[] plans;
-  mapping(bytes32 => Metatransaction) private transactionsScheduled;
-  mapping(address => mapping(uint256 => uint256)) remainingSchedulings;
+
+  mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
+
+  mapping(bytes32 => Metatransaction) private executions;
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
-  event PlanCancelled(uint256 indexed index);
-  event SchedulingsPurchased(address indexed requestor, uint256 plan, uint256 amount);
+  event PlanRemoved(uint256 indexed index);
+
+  event ExecutionPurchased(address indexed requestor, uint256 plan, uint256 amount);
   event MetatransactionAdded(
     bytes32 indexed id,
     address indexed requestor,
@@ -92,10 +96,10 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     active = plans[index].active;
   }
 
-  function cancelPlan(uint256 plan) external onlyProvider {
+  function removePlan(uint256 plan) external onlyProvider {
     require(plans[plan].active, 'The plan is already inactive');
     plans[plan].active = false;
-    emit PlanCancelled(plan);
+    emit PlanRemoved(plan);
   }
 
   function setPayee(address payee_) external onlyProvider {
@@ -117,8 +121,8 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     uint256 schedulingAmount
   ) private {
     require(plans[plan].active, 'Inactive plan');
-    remainingSchedulings[requestor][plan] += schedulingAmount;
-    emit SchedulingsPurchased(requestor, plan, schedulingAmount);
+    remainingExecutions[requestor][plan] += schedulingAmount;
+    emit ExecutionPurchased(requestor, plan, schedulingAmount);
   }
 
   // purcahse with ERC-20
@@ -156,13 +160,9 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
       );
   }
 
-  function getRemainingSchedulings(address requestor, uint256 plan) external view returns (uint256) {
-    return remainingSchedulings[requestor][plan];
-  }
-
   function spend(address requestor, uint256 plan) private {
-    require(remainingSchedulings[requestor][plan] > 0, 'No balance available');
-    remainingSchedulings[requestor][plan] -= 1;
+    require(remainingExecutions[requestor][plan] > 0, 'No balance available');
+    remainingExecutions[requestor][plan] -= 1;
   }
 
   function schedule(
@@ -178,7 +178,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     Metatransaction memory newMetaTx =
       Metatransaction(msg.sender, plan, to, data, gas, executionTime, msg.value, MetatransactionState.Scheduled);
     bytes32 metatransactionId = hash(newMetaTx);
-    transactionsScheduled[metatransactionId] = newMetaTx;
+    executions[metatransactionId] = newMetaTx;
     emit MetatransactionAdded(metatransactionId, msg.sender, plan, to, data, gas, executionTime, msg.value);
   }
 
@@ -196,7 +196,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
       MetatransactionState
     )
   {
-    Metatransaction memory metatransaction = transactionsScheduled[id];
+    Metatransaction memory metatransaction = executions[id];
     MetatransactionState state = transactionState(id);
     return (
       metatransaction.requestor,
@@ -211,12 +211,12 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   }
 
   function cancelScheduling(bytes32 id) external {
-    Metatransaction storage metatransaction = transactionsScheduled[id];
+    Metatransaction storage metatransaction = executions[id];
     require(transactionState(id) == MetatransactionState.Scheduled, 'Transaction not scheduled');
     require(msg.sender == metatransaction.requestor, 'Not authorized');
 
     metatransaction.state = MetatransactionState.Cancelled;
-    remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
+    remainingExecutions[metatransaction.requestor][metatransaction.plan] += 1;
     emit MetatransactionCancelled(id);
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
@@ -233,7 +233,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
 
   // slither-disable-next-line timestamp
   function transactionState(bytes32 id) public view returns (MetatransactionState) {
-    Metatransaction memory metatransaction = transactionsScheduled[id];
+    Metatransaction memory metatransaction = executions[id];
     if (
       metatransaction.state == MetatransactionState.Scheduled &&
       ((metatransaction.timestamp + plans[metatransaction.plan].window) < block.timestamp)
@@ -245,8 +245,8 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   }
 
   function refund(bytes32 id) private {
-    Metatransaction storage metatransaction = transactionsScheduled[id];
-    remainingSchedulings[metatransaction.requestor][metatransaction.plan] += 1;
+    Metatransaction storage metatransaction = executions[id];
+    remainingExecutions[metatransaction.requestor][metatransaction.plan] += 1;
     metatransaction.state = MetatransactionState.Refunded;
     payable(metatransaction.requestor).transfer(metatransaction.value);
   }
@@ -254,7 +254,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   // The nonReentrant prevents this contract to be call again when the low level call is executed
   // slither-disable-next-line timestamp
   function execute(bytes32 id) external nonReentrant {
-    Metatransaction storage metatransaction = transactionsScheduled[id];
+    Metatransaction storage metatransaction = executions[id];
 
     require(metatransaction.state == MetatransactionState.Scheduled, 'Already executed');
     // slither-disable-next-line timestamp

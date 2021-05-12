@@ -106,7 +106,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       expectEvent.notEmitted(receipt, 'MetatransactionExecuted')
       assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
       assert.strictEqual(
-        (await this.oneShotSchedule.getRemainingSchedulings(this.requestor, toBN(0))).toString(),
+        (await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(),
         '1',
         'Schedule not refunded'
       )

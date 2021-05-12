@@ -30,7 +30,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
       const metatransactionId = getMetatransactionId(scheduleReceipt)
       const actual = await this.oneShotSchedule.getSchedule(metatransactionId)
-      const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
+      const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
 
       assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
       assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')
@@ -98,7 +98,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
 
       //Scheduling should be refunded
       assert.strictEqual(
-        (await this.oneShotSchedule.getRemainingSchedulings(this.requestor, toBN(0))).toString(),
+        (await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(),
         '1',
         'Schedule not refunded'
       )
