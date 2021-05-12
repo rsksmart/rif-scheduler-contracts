@@ -9,8 +9,8 @@
   "scripts": {
     "test": "npx truffle test",
     "coverage": "npx truffle run coverage",
-    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js'",
-    "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js'"
+    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
+    "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'"
   },
   "repository": {
     "type": "git",
