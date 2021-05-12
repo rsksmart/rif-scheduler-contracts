@@ -165,6 +165,8 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     require(remainingExecutions[msg.sender][plan] > 0, 'No balance available');
     remainingExecutions[msg.sender][plan] -= 1;
 
+    // This is only to prevent errors, doesn't need to be exact
+    // timestamp manipulation should be considered in the window by the service provider
     // slither-disable-next-line timestamp
     require(block.timestamp <= timestamp, 'Cannot schedule it in the past');
 
@@ -216,11 +218,13 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   }
 
   // The nonReentrant prevents this contract to be call again when the low level call is executed
+  // timestamp manipulation should be considered in the window by the service provider
   // slither-disable-next-line timestamp
   function execute(bytes32 id) external nonReentrant {
     Execution storage execution = executions[id];
 
     require(execution.state == ExecutionState.Scheduled, 'Already executed');
+    // timestamp manipulation should be considered in the window by the service provider
     // slither-disable-next-line timestamp
     require((execution.timestamp - plans[execution.plan].window) < block.timestamp, 'Too soon');
 
@@ -234,13 +238,16 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) = payable(execution.to).call{ gas: execution.gas, value: execution.value }(execution.data);
 
+    // reentrancy prevented by nonReentrant modifier
     // slither-disable-next-line reentrancy-events
     emit Executed(id, success, result);
 
     if (success) {
+      // reentrancy prevented by nonReentrant modifier
       // slither-disable-next-line reentrancy-eth
       execution.state = ExecutionState.ExecutionSuccessful;
     } else {
+      // reentrancy prevented by nonReentrant modifier
       // slither-disable-next-line reentrancy-eth
       execution.state = ExecutionState.ExecutionFailed;
     }
