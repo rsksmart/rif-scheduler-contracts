@@ -130,7 +130,20 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   // SCHEDULING //
   ////////////////
 
-  function hash(Execution memory execution) internal pure returns (bytes32) {
+  // slither-disable-next-line timestamp
+  function transactionState(bytes32 id) public view returns (ExecutionState) {
+    Execution memory execution = executions[id];
+    if (
+      execution.state == ExecutionState.Scheduled &&
+      ((execution.timestamp + plans[execution.plan].window) < block.timestamp)
+    ) {
+      return ExecutionState.Overdue;
+    } else {
+      return execution.state;
+    }
+  }
+
+  function hash(Execution memory execution) public pure returns (bytes32) {
     return
       keccak256(
         abi.encode(
@@ -209,20 +222,6 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   ///////////////
   // EXECUTION //
   ///////////////
-
-  // slither-disable-next-line timestamp
-  function transactionState(bytes32 id) public view returns (ExecutionState) {
-    Execution memory execution = executions[id];
-    if (
-      execution.state == ExecutionState.Scheduled &&
-      ((execution.timestamp + plans[execution.plan].window) < block.timestamp)
-    ) {
-      return ExecutionState.Overdue;
-    } else {
-      return execution.state;
-    }
-  }
-
   function refund(bytes32 id) private {
     Execution storage execution = executions[id];
     remainingExecutions[execution.requestor][execution.plan] += 1;
