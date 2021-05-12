@@ -90,7 +90,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const requestorBalanceAfterSchedule = toBN(await web3.eth.getBalance(this.requestor))
       const cancelTx = await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
 
-      expectEvent(cancelTx, 'MetatransactionCancelled', { id: txId })
+      expectEvent(cancelTx, 'ExecutionCancelled', { id: txId })
 
       //State should be Cancelled
       const scheduling = await this.oneShotSchedule.getSchedule(txId)

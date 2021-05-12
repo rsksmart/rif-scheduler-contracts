@@ -103,7 +103,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       // execute after window
       const receipt = await this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).add(outsideWindow(0))))
       // this should reflect that it was late
-      expectEvent.notEmitted(receipt, 'MetatransactionExecuted')
+      expectEvent.notEmitted(receipt, 'Executed')
       assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
       assert.strictEqual(
         (await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(),
@@ -132,9 +132,9 @@ contract('OneShotSchedule - execution', (accounts) => {
       // scheduled for tomorrow
       const txId = await this.testScheduleWithValue(0, failData, toBN(0), timestamp.add(toBN(10)))
       const tx = await this.oneShotSchedule.execute(txId)
-      const log = tx.logs.find((l) => l.event === 'MetatransactionExecuted')
+      const log = tx.logs.find((l) => l.event === 'Executed')
       assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
-      expectEvent(tx, 'MetatransactionExecuted', {
+      expectEvent(tx, 'Executed', {
         id: txId,
         success: false,
       })
@@ -152,7 +152,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const scheduleReceipt = await this.oneShotSchedule.schedule(0, to, failData, gas, timestampInsideWindow, { from })
       const txId = getMetatransactionId(scheduleReceipt)
       const receipt = await this.oneShotSchedule.execute(txId)
-      expectEvent(receipt, 'MetatransactionExecuted', {
+      expectEvent(receipt, 'Executed', {
         id: txId,
         success: false,
       })

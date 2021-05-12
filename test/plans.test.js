@@ -24,10 +24,10 @@ contract('OneShotSchedule - plans', (accounts) => {
 
     this.testRemovePlan = async (account) => {
       await this.testAddPlan(plans[0].price, plans[0].window, this.token.address, account)
-      const planActive = await this.oneShotSchedule.getPlan(0)
+      const planActive = await this.oneShotSchedule.plans(0)
       assert.strictEqual(planActive.active, true, `The plan is not active`)
       await this.oneShotSchedule.removePlan(0, { from: account })
-      const planInactive = await this.oneShotSchedule.getPlan(0)
+      const planInactive = await this.oneShotSchedule.plans(0)
       assert.strictEqual(planInactive.active, false, `Didn't cancel the plan`)
     }
   })
