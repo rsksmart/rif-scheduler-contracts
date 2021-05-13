@@ -28,8 +28,8 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
       await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
       const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
-      const metatransactionId = getExecutionId(scheduleReceipt)
-      const actual = await this.oneShotSchedule.getSchedule(metatransactionId)
+      const executionId = getExecutionId(scheduleReceipt)
+      const actual = await this.oneShotSchedule.getSchedule(executionId)
       const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
 
       assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
@@ -42,16 +42,16 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       assert.strictEqual(actual[7].toString(), ExecutionState.Scheduled)
 
       assert.strictEqual(scheduled.toString(10), '0', `Shouldn't have any scheduling`)
-      return metatransactionId
+      return executionId
     }
   })
 
-  it('schedule a new metatransaction', async () => {
+  it('schedule a new execution', async () => {
     const scheduleTime = (await time.latest()).add(toBN(100))
     return this.testScheduleWithValue(0, toBN(0), scheduleTime)
   })
 
-  it('schedule a new metatransaction with value', async () => {
+  it('schedule a new execution with value', async () => {
     const scheduleTime = (await time.latest()).add(toBN(100))
     return this.testScheduleWithValue(0, toBN(1e15), scheduleTime)
   })
@@ -84,7 +84,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       }
     })
 
-    it('should schedule, cancel metatransaction and refund', async () => {
+    it('should schedule, cancel execution and refund', async () => {
       const valueForTx = toBN(1e15)
       const txId = await this.scheduleOneValid(valueForTx)
       const requestorBalanceAfterSchedule = toBN(await web3.eth.getBalance(this.requestor))
@@ -112,7 +112,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       assert.strictEqual(expectedRequestorBalance.toString(), finalRequestorBalance.toString(), 'Transaction value not refunded')
     })
 
-    it('should fail to cancel a cancelled metatransaction', async () => {
+    it('should fail to cancel a cancelled execution', async () => {
       const txId = await this.scheduleOneValid(toBN(1e15))
       await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
       return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor }), 'Transaction not scheduled')

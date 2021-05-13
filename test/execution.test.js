@@ -75,8 +75,8 @@ contract('OneShotSchedule - execution', (accounts) => {
   })
 
   describe('success', () => {
-    it('executes a listed a metatransaction', () => this.testExecutionWithValue(toBN(0)))
-    it('executes a listed a metatransaction with value', () => this.testExecutionWithValue(toBN(1e15)))
+    it('executes a listed a execution', () => this.testExecutionWithValue(toBN(0)))
+    it('executes a listed a execution with value', () => this.testExecutionWithValue(toBN(1e15)))
   })
 
   describe('failing', () => {
