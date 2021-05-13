@@ -28,7 +28,7 @@
     "@rsksmart/erc677": "^2.0.0"
   },
   "devDependencies": {
-    "@openzeppelin/test-helpers": "^0.5.10",
+    "@openzeppelin/test-helpers": "^0.5.11",
     "@openzeppelin/truffle-upgrades": "^1.6.1",
     "@truffle/hdwallet-provider": "^1.2.6",
     "ganache-time-traveler": "^1.0.15",

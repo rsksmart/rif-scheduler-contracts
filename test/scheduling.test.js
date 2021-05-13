@@ -2,17 +2,15 @@ const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
 const { time, expectRevert } = require('@openzeppelin/test-helpers')
-const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
-const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId } = require('./common.js')
+const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId, getMethodSig } = require('./common.js')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
-const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
-const incData = getMethodSig('inc()')
+
+const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 
 contract('OneShotSchedule - scheduling', (accounts) => {
   beforeEach(async () => {
-    this.initialSnapshot = timeMachine.takeSnapshot()
-    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
+     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
@@ -132,6 +130,4 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor }), 'Transaction not scheduled')
     })
   })
-
-  afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))
 })

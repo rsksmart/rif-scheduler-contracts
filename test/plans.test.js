@@ -1,12 +1,10 @@
 const assert = require('assert')
 const { expectEvent, expectRevert, constants } = require('@openzeppelin/test-helpers')
-const timeMachine = require('ganache-time-traveler')
 
 const { plans, setupContracts } = require('./common.js')
 
 contract('OneShotSchedule - plans', (accounts) => {
   beforeEach(async () => {
-    this.initialSnapshot = timeMachine.takeSnapshot()
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
@@ -55,6 +53,4 @@ contract('OneShotSchedule - plans', (accounts) => {
     await this.testRemovePlan(this.serviceProvider)
     return expectRevert(this.oneShotSchedule.removePlan(0, { from: this.serviceProvider }), 'The plan is already inactive')
   })
-
-  afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))
 })
