@@ -4,7 +4,7 @@ const assert = require('assert')
 const { time, expectRevert } = require('@openzeppelin/test-helpers')
 const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
-const { plans, MetaTransactionState, setupContracts, insideWindow, outsideWindow, getMetatransactionId } = require('./common.js')
+const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId } = require('./common.js')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
 const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
 const incData = getMethodSig('inc()')
@@ -28,9 +28,9 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
       await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
       const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
-      const metatransactionId = getMetatransactionId(scheduleReceipt)
+      const metatransactionId = getExecutionId(scheduleReceipt)
       const actual = await this.oneShotSchedule.getSchedule(metatransactionId)
-      const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
+      const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
 
       assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
       assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')
@@ -39,7 +39,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       assert.strictEqual(actual[4].toString(), gas.toString())
       assert.strictEqual(actual[5].toString(), timestamp.toString())
       assert.strictEqual(actual[6].toString(), value.toString())
-      assert.strictEqual(actual[7].toString(), MetaTransactionState.Scheduled)
+      assert.strictEqual(actual[7].toString(), ExecutionState.Scheduled)
 
       assert.strictEqual(scheduled.toString(10), '0', `Shouldn't have any scheduling`)
       return metatransactionId
@@ -90,18 +90,14 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const requestorBalanceAfterSchedule = toBN(await web3.eth.getBalance(this.requestor))
       const cancelTx = await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
 
-      expectEvent(cancelTx, 'MetatransactionCancelled', { id: txId })
+      expectEvent(cancelTx, 'ExecutionCancelled', { id: txId })
 
       //State should be Cancelled
       const scheduling = await this.oneShotSchedule.getSchedule(txId)
-      assert.strictEqual(scheduling[7].toString(), MetaTransactionState.Cancelled, 'Not cancelled')
+      assert.strictEqual(scheduling[7].toString(), ExecutionState.Cancelled, 'Not cancelled')
 
       //Scheduling should be refunded
-      assert.strictEqual(
-        (await this.oneShotSchedule.getRemainingSchedulings(this.requestor, toBN(0))).toString(),
-        '1',
-        'Schedule not refunded'
-      )
+      assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(), '1', 'Schedule not refunded')
 
       //Value should be returned from contract to requestor
       //Final contract balance should be 0

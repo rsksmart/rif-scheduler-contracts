@@ -19,7 +19,7 @@ contract('OneShotSchedule - purchase', (accounts) => {
     this.testPurchaseWithValue = async (plan, value) => {
       await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
       await this.oneShotSchedule.purchase(plan, value, { from: this.requestor })
-      const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
+      const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
       const contractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
 
       assert.strictEqual(scheduled.toString(10), value.toString(10), `Didn't schedule ${value}`)
@@ -29,7 +29,7 @@ contract('OneShotSchedule - purchase', (accounts) => {
     this.testERC677Purchase = async (plan, schedulings, totalToTransfer) => {
       const encodedData = web3.eth.abi.encodeParameters(['uint256', 'uint256'], [plan.toString(), schedulings.toString()])
       await this.token.transferAndCall(this.oneShotSchedule.address, totalToTransfer, encodedData, { from: this.requestor })
-      const scheduled = await this.oneShotSchedule.getRemainingSchedulings(this.requestor, plan)
+      const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
       const contractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
 
       assert.strictEqual(scheduled.toString(10), schedulings.toString(10), `Didn't schedule ${schedulings.toString(10)}`)
@@ -56,11 +56,11 @@ contract('OneShotSchedule - purchase', (accounts) => {
       )
     })
     it("shouldn't purchase if the plan is cancelled  - ERC20", async () => {
-      await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })
+      await this.oneShotSchedule.removePlan(0, { from: this.serviceProvider })
       return expectRevert(this.testPurchaseWithValue(0, toBN(1)), 'Inactive plan')
     })
     it("shouldn't purchase if the plan is cancelled  - ERC677", async () => {
-      await this.oneShotSchedule.cancelPlan(0, { from: this.serviceProvider })
+      await this.oneShotSchedule.removePlan(0, { from: this.serviceProvider })
       return expectRevert(this.testERC677Purchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'Inactive plan')
     })
     it("shouldn't purchase if payment fails", () =>

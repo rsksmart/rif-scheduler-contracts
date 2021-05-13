@@ -5,9 +5,12 @@
 <p align="middle">
     RIF Scheduler smart contracts
 </p>
-<p>
+<p align="middle">
     <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml" alt="ci">
         <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml/badge.svg" alt="ci" />
+    </a>
+    <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/scan.yml" alt="ci">
+        <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/scan.yml/badge.svg" alt="ci" />
     </a>
 </p>
 
@@ -56,3 +59,8 @@ First install [`slither`](https://github.com/crytic/slither) and run:
 ```
 slither .
 ```
+
+## Acknowledgment
+Scheduled transaction times are not exact, they will be performed inside an execution window depending on the plan.
+The contract also uses `block.timestamp` to stablish if the scheduled transaction should be executed and/or refunded,
+which is subject to manipulation for short time periods.
