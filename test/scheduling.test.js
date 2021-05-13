@@ -10,7 +10,7 @@ const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 
 contract('OneShotSchedule - scheduling', (accounts) => {
   beforeEach(async () => {
-     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
+    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
