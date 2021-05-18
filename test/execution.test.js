@@ -2,19 +2,16 @@ const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
 const { time, expectEvent, expectRevert } = require('@openzeppelin/test-helpers')
-const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
 
 const ONE_DAY = 60 * 60 * 24 // in seconds
-const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId } = require('./common.js')
+const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId, getMethodSig } = require('./common.js')
 
-const getMethodSig = (method) => web3.utils.sha3(method).slice(0, 10)
-const incData = getMethodSig('inc()')
-const failData = getMethodSig('fail()')
+const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
+const failData = getMethodSig({ inputs: [], name: 'fail', type: 'function' })
 
 contract('OneShotSchedule - execution', (accounts) => {
   beforeEach(async () => {
-    this.initialSnapshot = timeMachine.takeSnapshot()
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
@@ -75,8 +72,8 @@ contract('OneShotSchedule - execution', (accounts) => {
   })
 
   describe('success', () => {
-    it('executes a listed a metatransaction', () => this.testExecutionWithValue(toBN(0)))
-    it('executes a listed a metatransaction with value', () => this.testExecutionWithValue(toBN(1e15)))
+    it('executes a listed a execution', () => this.testExecutionWithValue(toBN(0)))
+    it('executes a listed a execution with value', () => this.testExecutionWithValue(toBN(1e15)))
   })
 
   describe('failing', () => {
@@ -155,6 +152,4 @@ contract('OneShotSchedule - execution', (accounts) => {
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionFailed, 'Execution did not fail')
     })
   })
-
-  afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))
 })

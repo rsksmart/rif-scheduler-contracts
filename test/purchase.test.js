@@ -1,13 +1,11 @@
 const assert = require('assert')
 const { expectRevert } = require('@openzeppelin/test-helpers')
-const timeMachine = require('ganache-time-traveler')
 const { toBN } = web3.utils
 
 const { plans, setupContracts } = require('./common.js')
 
 contract('OneShotSchedule - purchase', (accounts) => {
   beforeEach(async () => {
-    this.initialSnapshot = timeMachine.takeSnapshot()
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
     const { token, token2, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
@@ -67,6 +65,4 @@ contract('OneShotSchedule - purchase', (accounts) => {
       // making it fail because there's no amount approved
       expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.requestor })))
   })
-
-  afterEach(() => timeMachine.revertToSnapshot(this.initialSnapshot))
 })

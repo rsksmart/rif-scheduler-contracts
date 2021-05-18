@@ -36,5 +36,6 @@ exports.getExecutionId = (tx) => {
   const log = tx.receipt.logs.find((l) => l.event === 'ExecutionRequested')
   return log.args.id
 }
+exports.getMethodSig = (methodAbi, params = []) => web3.eth.abi.encodeFunctionCall(methodAbi, params)
 
 exports.plans = plans

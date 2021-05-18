@@ -142,16 +142,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   function hash(Execution memory execution) public pure returns (bytes32) {
     return
       keccak256(
-        abi.encode(
-          execution.requestor,
-          execution.plan,
-          execution.to,
-          execution.data,
-          execution.gas,
-          execution.timestamp,
-          execution.value,
-          execution.state
-        )
+        abi.encode(execution.requestor, execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value)
       );
   }
 
