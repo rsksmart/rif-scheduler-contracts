@@ -43,7 +43,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   event PlanRemoved(uint256 indexed index);
 
   event ExecutionPurchased(address indexed requestor, uint256 plan, uint256 amount);
-  event ExecutionRequested(bytes32 indexed id);
+  event ExecutionRequested(bytes32 indexed id, uint256 timestamp);
   event Executed(bytes32 indexed id, bool success, bytes result);
   event ExecutionCancelled(bytes32 indexed id);
 
@@ -164,7 +164,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, msg.value, ExecutionState.Scheduled);
     bytes32 id = hash(execution);
     executions[id] = execution;
-    emit ExecutionRequested(id);
+    emit ExecutionRequested(id, timestamp);
   }
 
   function getSchedule(bytes32 id)
