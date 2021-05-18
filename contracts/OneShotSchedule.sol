@@ -171,18 +171,18 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     external
     view
     returns (
-      address,
-      uint256,
-      address,
-      bytes memory,
-      uint256,
-      uint256,
-      uint256,
-      ExecutionState
+      address requestor,
+      uint256 plan,
+      address to,
+      bytes memory data,
+      uint256 gas,
+      uint256 timestamp,
+      uint256 value,
+      ExecutionState state
     )
   {
     Execution memory execution = executions[id];
-    ExecutionState state = getState(id);
+    state = getState(id);
     return (execution.requestor, execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value, state);
   }
 
