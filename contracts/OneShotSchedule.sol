@@ -182,8 +182,15 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     )
   {
     Execution memory execution = executions[id];
+    
+    requestor = execution.requestor;
+    plan = execution.plan;
+    to = execution.to;
+    data = execution.data;
+    gas = execution.gas;
+    timestamp = execution.timestamp;
+    value = execution.value;
     state = getState(id);
-    return (execution.requestor, execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value, state);
   }
 
   function cancelScheduling(bytes32 id) external {
