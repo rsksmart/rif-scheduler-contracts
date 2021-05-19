@@ -182,7 +182,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     )
   {
     Execution memory execution = executions[id];
-    
+
     requestor = execution.requestor;
     plan = execution.plan;
     to = execution.to;
