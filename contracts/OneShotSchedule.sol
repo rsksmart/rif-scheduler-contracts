@@ -43,7 +43,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   event PlanRemoved(uint256 indexed index);
 
   event ExecutionPurchased(address indexed requestor, uint256 plan, uint256 amount);
-  event ExecutionRequested(bytes32 indexed id);
+  event ExecutionRequested(bytes32 indexed id, uint256 timestamp);
   event Executed(bytes32 indexed id, bool success, bytes result);
   event ExecutionCancelled(bytes32 indexed id);
 
@@ -164,26 +164,33 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, msg.value, ExecutionState.Scheduled);
     bytes32 id = hash(execution);
     executions[id] = execution;
-    emit ExecutionRequested(id);
+    emit ExecutionRequested(id, timestamp);
   }
 
   function getSchedule(bytes32 id)
     external
     view
     returns (
-      address,
-      uint256,
-      address,
-      bytes memory,
-      uint256,
-      uint256,
-      uint256,
-      ExecutionState
+      address requestor,
+      uint256 plan,
+      address to,
+      bytes memory data,
+      uint256 gas,
+      uint256 timestamp,
+      uint256 value,
+      ExecutionState state
     )
   {
     Execution memory execution = executions[id];
-    ExecutionState state = getState(id);
-    return (execution.requestor, execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value, state);
+
+    requestor = execution.requestor;
+    plan = execution.plan;
+    to = execution.to;
+    data = execution.data;
+    gas = execution.gas;
+    timestamp = execution.timestamp;
+    value = execution.value;
+    state = getState(id);
   }
 
   function cancelScheduling(bytes32 id) external {

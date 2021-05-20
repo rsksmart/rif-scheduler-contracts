@@ -14,5 +14,8 @@ module.exports = async (deployer, network, accounts) => {
   if (network !== 'test' && network !== 'soliditycoverage') {
     await deployProxy(OneShotSchedule, [contractAdmin, payee], { deployer })
     console.log('OneShotSchedule Contract implementation: ' + OneShotSchedule.address)
+    await OneShotSchedule.deployed().then((oneShotSchedule) =>
+      oneShotSchedule.addPlan('1000000000000000000', '300', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
+    )
   }
 }
