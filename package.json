@@ -10,7 +10,9 @@
     "test": "npx truffle test",
     "coverage": "npx truffle run coverage",
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
-    "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'"
+    "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
+    "deploy:ganache": "npx truffle migrate --network ganache",
+    "deploy:rsk-testnet": "npx truffle migrate --network rskTestnet"
   },
   "repository": {
     "type": "git",
@@ -35,6 +37,7 @@
     "prettier": "^2.2.1",
     "prettier-plugin-solidity": "^1.0.0-beta.10",
     "solidity-coverage": "^0.7.16",
-    "truffle": "^5.3.1"
+    "truffle": "^5.3.1",
+    "truffle-flattener": "^1.5.0"
   }
 }

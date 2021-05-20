@@ -32,7 +32,7 @@ module.exports = {
   networks: {
     ganache: {
      host: "127.0.0.1",     // Localhost (default: none)
-     port: 7545,            // Standard Ethereum port (default: none)
+     port: 8545,            // Standard Ethereum port (default: none)
      network_id: "*",       // Any network (default: none)
     },
     rskTestnet: {
@@ -43,6 +43,15 @@ module.exports = {
       }),
       network_id: 31,
       gasPrice: 600000000,
+    },
+    rskMainnet: {
+      provider: () => new HDWalletProvider({
+        mnemonic,
+        providerOrUrl: `https://public-node.rsk.co`,
+        derivationPath: "m/44'/137'/0'/0/"
+      }),
+      network_id: 30,
+      gasPrice: 60000000,
     },
   },
 
