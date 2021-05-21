@@ -36,6 +36,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   address public payee;
 
   Plan[] public plans;
+
   mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
   mapping(bytes32 => Execution) private executions;
 
@@ -78,6 +79,10 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     require(plans[plan].active, 'The plan is already inactive');
     plans[plan].active = false;
     emit PlanRemoved(plan);
+  }
+
+  function getPlansCount() public view returns (uint256) {
+    return plans.length;
   }
 
   function setPayee(address payee_) external onlyProvider {

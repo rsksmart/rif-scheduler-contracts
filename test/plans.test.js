@@ -1,5 +1,6 @@
 const assert = require('assert')
 const { expectEvent, expectRevert, constants } = require('@openzeppelin/test-helpers')
+const { toBN } = web3.utils
 
 const { plans, setupContracts } = require('./common.js')
 
@@ -12,12 +13,15 @@ contract('OneShotSchedule - plans', (accounts) => {
     this.oneShotSchedule = oneShotSchedule
 
     this.testAddPlan = async (price, window, token, account) => {
+      const beforeCount = await this.oneShotSchedule.getPlansCount()
       const receipt = await this.oneShotSchedule.addPlan(price, window, token, { from: account })
       expectEvent(receipt, 'PlanAdded', {
         price: price,
         window: window,
         token: token,
       })
+      const afterCount = await this.oneShotSchedule.getPlansCount()
+      assert.strictEqual(beforeCount.add(toBN(1)).toString(), afterCount.toString(), `Count doesn't match`)
     }
 
     this.testRemovePlan = async (account) => {
