@@ -53,7 +53,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     _;
   }
 
-  function initialize(address serviceProvider_, address payee_) public initializer {
+  function initialize(address serviceProvider_, address payee_) external initializer {
     __ReentrancyGuard_init();
     require(payee_ != address(0x0), 'Payee address cannot be 0x0');
     require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
@@ -81,7 +81,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     emit PlanRemoved(plan);
   }
 
-  function getPlansCount() public view returns (uint256) {
+  function getPlansCount() external view returns (uint256) {
     return plans.length;
   }
 
