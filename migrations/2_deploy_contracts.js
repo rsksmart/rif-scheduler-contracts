@@ -21,4 +21,9 @@ module.exports = async (deployer, network, accounts) => {
       oneShotSchedule.addPlan('1000000000000000000', '300', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
     )
   }
+
+  if (network === 'ganache') {
+    await deployer.deploy(ERC677, 'YOUR_ADDRESS', web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF')
+    await OneShotSchedule.deployed().then((oneShotSchedule) => oneShotSchedule.addPlan('1000000000000000000', '300', ERC677.address))
+  }
 }
