@@ -28,13 +28,13 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     const gas = toBN(await this.counter.inc.estimateGas())
     await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
 
-    const purchaseCall = this.oneShotSchedule.contract.methods.purchase(plan, 1).encodeABI();
-    const schedule = this.oneShotSchedule.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI();
-    const results = await this.oneShotSchedule.multicall([purchaseCall, schedule], {from: this.requestor});
+    const purchaseCall = this.oneShotSchedule.contract.methods.purchase(plan, 1).encodeABI()
+    const schedule = this.oneShotSchedule.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
+    const results = await this.oneShotSchedule.multicall([purchaseCall, schedule], { from: this.requestor })
     const executionId = getExecutionId(results)
     const actual = await this.oneShotSchedule.getSchedule(executionId)
     const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
-  
+
     assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
     assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')
     assert.strictEqual(actual[2], to, 'Wrong contract address')

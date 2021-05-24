@@ -260,10 +260,10 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     require(plans[execution.plan].token.transfer(payee, plans[execution.plan].pricePerExecution), "Couldn't transfer to payee");
   }
 
-  function multicall(bytes[] calldata data) external returns(bytes[] memory results) {
-    require(address(this) != self);     //This makes safe the use of delegatedcall, making it only viable on the proxy
+  function multicall(bytes[] calldata data) external returns (bytes[] memory results) {
+    require(address(this) != self); //This makes safe the use of delegatedcall, making it only viable on the proxy
     results = new bytes[](data.length);
-    for(uint i = 0; i < data.length; i++) {
+    for (uint256 i = 0; i < data.length; i++) {
       (bool success, bytes memory result) = address(this).delegatecall(data[i]);
       require(success);
       results[i] = result;
