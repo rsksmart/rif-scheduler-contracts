@@ -23,7 +23,9 @@ module.exports = async (deployer, network, accounts) => {
   }
 
   if (network === 'ganache') {
-    await deployer.deploy(ERC677, 'YOUR_ADDRESS', web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF')
+    const devAccount = 'YOUR_ACCOUNT'
+    await web3.eth.sendTransaction({ from: accounts[0], to: devAccount, value: '1000000000000000000' })
+    await deployer.deploy(ERC677, devAccount, web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF')
     await OneShotSchedule.deployed().then((oneShotSchedule) => oneShotSchedule.addPlan('1000000000000000000', '300', ERC677.address))
   }
 }
