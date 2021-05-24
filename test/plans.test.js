@@ -20,7 +20,7 @@ contract('OneShotSchedule - plans', (accounts) => {
         window: window,
         token: token,
       })
-      const afterCount = await this.oneShotSchedule.getPlansCount()
+      const afterCount = await this.oneShotSchedule.plansCount()
       assert.strictEqual(beforeCount.add(toBN(1)).toString(), afterCount.toString(), `Count doesn't match`)
     }
 
