@@ -24,8 +24,6 @@ contract('OneShotSchedule - plans', (accounts) => {
       assert.strictEqual(beforeCount.add(toBN(1)).toString(), afterCount.toString(), `Count doesn't match`)
     }
 
-it('initially has no plans', () => this.oneShotSchedule.plansCount().then(count => assert.strictEqual(count.toString(), '0'))
-
     this.testRemovePlan = async (account) => {
       await this.testAddPlan(plans[0].price, plans[0].window, this.token.address, account)
       const planActive = await this.oneShotSchedule.plans(0)
