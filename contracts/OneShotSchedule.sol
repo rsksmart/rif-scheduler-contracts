@@ -81,7 +81,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     emit PlanRemoved(plan);
   }
 
-  function getPlansCount() external view returns (uint256) {
+  function plansCount() external view returns (uint256) {
     return plans.length;
   }
 
