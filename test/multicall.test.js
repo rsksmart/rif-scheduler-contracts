@@ -1,7 +1,8 @@
 const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
-const { time } = require('@openzeppelin/test-helpers')
+
+const { time, expectRevert } = require('@openzeppelin/test-helpers')
 const { toBN } = web3.utils
 const { plans, ExecutionState, setupContracts, getExecutionId, getMethodSig } = require('./common.js')
 
