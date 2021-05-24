@@ -13,7 +13,7 @@ contract('OneShotSchedule - plans', (accounts) => {
     this.oneShotSchedule = oneShotSchedule
 
     this.testAddPlan = async (price, window, token, account) => {
-      const beforeCount = await this.oneShotSchedule.getPlansCount()
+      const beforeCount = await this.oneShotSchedule.plansCount()
       const receipt = await this.oneShotSchedule.addPlan(price, window, token, { from: account })
       expectEvent(receipt, 'PlanAdded', {
         price: price,
