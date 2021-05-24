@@ -21,7 +21,6 @@ exports.ExecutionState = {
 exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor) => {
   const token = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
   const token2 = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RDOC', 'DOC')
-
   const oneShotSchedule = await deployProxy(OneShotSchedule, [serviceProvider, payee], {
     unsafeAllow: ['state-variable-assignment', 'state-variable-immutable', 'delegatecall'],
   })
