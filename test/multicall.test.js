@@ -1,10 +1,9 @@
 const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
-const { time, expectRevert } = require('@openzeppelin/test-helpers')
+const { time } = require('@openzeppelin/test-helpers')
 const { toBN } = web3.utils
-const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId, getMethodSig } = require('./common.js')
-const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
+const { plans, ExecutionState, setupContracts, getExecutionId, getMethodSig } = require('./common.js')
 
 const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 
