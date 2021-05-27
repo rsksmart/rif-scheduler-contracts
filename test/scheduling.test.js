@@ -201,7 +201,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       expectEvent(scheduleReceipt, 'ExecutionRequested')
       assert.strictEqual(executionsLeft.toString(), '0')
     })
-    
+
     it('should fail because of the value', async () => {
       const quantity = 5
       const planId = 0
