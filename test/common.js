@@ -38,6 +38,12 @@ exports.getExecutionId = (tx) => {
   const log = tx.receipt.logs.find((l) => l.event === 'ExecutionRequested')
   return log.args.id
 }
+
+exports.getMultipleExecutionId = (tx) => {
+  const logs = tx.receipt.logs.filter((l) => l.event === 'ExecutionRequested')
+  return logs.map((l) => l.args.id)
+}
+
 exports.getMethodSig = (methodAbi, params = []) => web3.eth.abi.encodeFunctionCall(methodAbi, params)
 
 exports.plans = plans

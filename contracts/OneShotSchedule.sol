@@ -153,25 +153,40 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
       );
   }
 
+  function _schedule(Execution memory execution) private returns (bytes32 id) {
+    require(msg.sender == execution.requestor, 'No balance available'); // just in case
+    require(remainingExecutions[msg.sender][execution.plan] > 0, 'No balance available');
+    // This is only to prevent errors, doesn't need to be exact
+    // timestamp manipulation should be considered in the window by the service provider
+    // slither-disable-next-line timestamp
+    require(block.timestamp <= execution.timestamp, 'Cannot schedule it in the past');
+    remainingExecutions[msg.sender][execution.plan] -= 1;
+    id = hash(execution);
+    executions[id] = execution;
+    emit ExecutionRequested(id, execution.timestamp);
+  }
+
   function schedule(
     uint256 plan,
     address to,
     bytes calldata data,
     uint256 gas,
     uint256 timestamp
-  ) external payable {
-    require(remainingExecutions[msg.sender][plan] > 0, 'No balance available');
-    remainingExecutions[msg.sender][plan] -= 1;
-
-    // This is only to prevent errors, doesn't need to be exact
-    // timestamp manipulation should be considered in the window by the service provider
-    // slither-disable-next-line timestamp
-    require(block.timestamp <= timestamp, 'Cannot schedule it in the past');
-
+  ) external payable returns (bytes32 id) {
     Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, msg.value, ExecutionState.Scheduled);
-    bytes32 id = hash(execution);
-    executions[id] = execution;
-    emit ExecutionRequested(id, timestamp);
+    return (_schedule(execution));
+  }
+
+  function batchSchedule(bytes[] calldata data) external payable returns (bytes32[] memory ids) {
+    uint256 totalValue = 0;
+    ids = new bytes32[](data.length);
+    for (uint256 i = 0; i < data.length; i++) {
+      (uint256 plan, address to, bytes memory txData, uint256 gas, uint256 timestamp, uint256 value) =
+        abi.decode(data[i], (uint256, address, bytes, uint256, uint256, uint256));
+      totalValue += value;
+      ids[i] = _schedule(Execution(msg.sender, plan, to, txData, gas, timestamp, value, ExecutionState.Scheduled));
+    }
+    require(totalValue == msg.value, "Executions total value doesn't match");
   }
 
   function getSchedule(bytes32 id)
