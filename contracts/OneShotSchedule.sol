@@ -154,7 +154,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   }
 
   function _schedule(Execution memory execution) private returns (bytes32 id) {
-    require(msg.sender == execution.requestor, 'No balance available'); // just in case
+    require(msg.sender == execution.requestor, 'Not the requestor'); // just in case
     require(remainingExecutions[msg.sender][execution.plan] > 0, 'No balance available');
     // This is only to prevent errors, doesn't need to be exact
     // timestamp manipulation should be considered in the window by the service provider
