@@ -39,6 +39,8 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
 
   mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
   mapping(bytes32 => Execution) private executions;
+  mapping(address => bytes32[]) private executionsByRequestor;
+  bytes32[] executionsIds;
 
   address private immutable self = address(this);
 
@@ -163,6 +165,8 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     remainingExecutions[msg.sender][execution.plan] -= 1;
     id = hash(execution);
     executions[id] = execution;
+    executionsByRequestor[msg.sender].push(id);
+    executionsIds.push(id);
     emit ExecutionRequested(id, execution.timestamp);
   }
 
@@ -203,6 +207,38 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
       ExecutionState state
     )
   {
+    Execution memory execution = executions[id];
+
+    requestor = execution.requestor;
+    plan = execution.plan;
+    to = execution.to;
+    data = execution.data;
+    gas = execution.gas;
+    timestamp = execution.timestamp;
+    value = execution.value;
+    state = getState(id);
+  }
+
+  function allExecutionsIdsCount() external view returns(uint256){
+    return executionsIds.length;
+  }
+
+  function requestorExecutionListCount() external view returns(uint256){
+    return executionsByRequestor[msg.sender].length;
+  }
+
+  function requestorExecutionByIndex(uint256 index) external view returns (
+      bytes32 id,
+      address requestor,
+      uint256 plan,
+      address to,
+      bytes memory data,
+      uint256 gas,
+      uint256 timestamp,
+      uint256 value,
+      ExecutionState state
+    ){
+    id = executionsByRequestor[msg.sender][index];
     Execution memory execution = executions[id];
 
     requestor = execution.requestor;
