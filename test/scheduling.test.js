@@ -80,6 +80,13 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       'No balance available'
     )
   })
+  it('cannot schedule if already scheduled', async () => {
+    const scheduleTime = (await time.latest()).add(toBN(100))
+    // buy one, use one
+    await this.testScheduleWithValue(0, toBN(0), scheduleTime)
+    // try to schedule another
+    return expectRevert(this.testScheduleWithValue(0, toBN(0), scheduleTime), 'Already scheduled')
+  })
 
   describe('Scheduling cancellation', () => {
     beforeEach(() => {
@@ -213,7 +220,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
-      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount({ from: this.requestor})
+      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount({ from: this.requestor })
 
       const executionList = await this.oneShotSchedule.getExecutionsByRequestor(toBN(0), toBN(quantity), { from: this.requestor })
 

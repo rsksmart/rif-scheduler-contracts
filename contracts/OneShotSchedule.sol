@@ -161,8 +161,10 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     // timestamp manipulation should be considered in the window by the service provider
     // slither-disable-next-line timestamp
     require(block.timestamp <= execution.timestamp, 'Cannot schedule it in the past');
-    remainingExecutions[msg.sender][execution.plan] -= 1;
     id = hash(execution);
+    // checking existence, no execution can be scheduled with timestamp 0
+    require(executions[id].timestamp == 0, 'Already scheduled');
+    remainingExecutions[msg.sender][execution.plan] -= 1;
     executions[id] = execution;
     executionsByRequestor[msg.sender].push(id);
     emit ExecutionRequested(id, execution.timestamp);

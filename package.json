@@ -7,7 +7,7 @@
     "!/contracts/Migrations.sol"
   ],
   "scripts": {
-    "test": "npx truffle test",
+    "test": "npx truffle compile --all && npx truffle test",
     "coverage": "npx truffle run coverage",
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
