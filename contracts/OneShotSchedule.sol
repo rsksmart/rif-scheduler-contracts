@@ -40,7 +40,6 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
   mapping(bytes32 => Execution) private executions;
   mapping(address => bytes32[]) private executionsByRequestor;
-  bytes32[] executionsIds;
 
   address private immutable self = address(this);
 
@@ -166,7 +165,6 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     id = hash(execution);
     executions[id] = execution;
     executionsByRequestor[msg.sender].push(id);
-    executionsIds.push(id);
     emit ExecutionRequested(id, execution.timestamp);
   }
 
@@ -182,7 +180,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   }
 
   function batchSchedule(bytes[] calldata data) external payable returns (bytes32[] memory ids) {
-    uint256 totalValue = 0;
+    uint256 totalValue;
     ids = new bytes32[](data.length);
     for (uint256 i = 0; i < data.length; i++) {
       (uint256 plan, address to, bytes memory txData, uint256 gas, uint256 timestamp, uint256 value) =
@@ -193,62 +191,21 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     require(totalValue == msg.value, "Executions total value doesn't match");
   }
 
-  function getSchedule(bytes32 id)
-    external
-    view
-    returns (
-      address requestor,
-      uint256 plan,
-      address to,
-      bytes memory data,
-      uint256 gas,
-      uint256 timestamp,
-      uint256 value,
-      ExecutionState state
-    )
-  {
-    Execution memory execution = executions[id];
-
-    requestor = execution.requestor;
-    plan = execution.plan;
-    to = execution.to;
-    data = execution.data;
-    gas = execution.gas;
-    timestamp = execution.timestamp;
-    value = execution.value;
-    state = getState(id);
+  function getExecutionsById(bytes32 id) public view returns (Execution memory execution) {
+    execution = executions[id];
+    execution.state = getState(id);
   }
 
-  function allExecutionsIdsCount() external view returns(uint256){
-    return executionsIds.length;
-  }
-
-  function requestorExecutionListCount() external view returns(uint256){
+  function executionsByRequestorCount() external view returns (uint256) {
     return executionsByRequestor[msg.sender].length;
   }
 
-  function requestorExecutionByIndex(uint256 index) external view returns (
-      bytes32 id,
-      address requestor,
-      uint256 plan,
-      address to,
-      bytes memory data,
-      uint256 gas,
-      uint256 timestamp,
-      uint256 value,
-      ExecutionState state
-    ){
-    id = executionsByRequestor[msg.sender][index];
-    Execution memory execution = executions[id];
-
-    requestor = execution.requestor;
-    plan = execution.plan;
-    to = execution.to;
-    data = execution.data;
-    gas = execution.gas;
-    timestamp = execution.timestamp;
-    value = execution.value;
-    state = getState(id);
+  function getExecutionsByRequestor(uint256 fromIndex, uint256 toIndex) external view returns (Execution[] memory executionList) {
+    require(executionsByRequestor[msg.sender].length >= toIndex && fromIndex < toIndex, 'Out of range');
+    executionList = new Execution[](toIndex - fromIndex);
+    for (uint256 i = fromIndex; i < toIndex; i++) {
+      executionList[i - fromIndex] = getExecutionsById(executionsByRequestor[msg.sender][i]);
+    }
   }
 
   function cancelScheduling(bytes32 id) external {
