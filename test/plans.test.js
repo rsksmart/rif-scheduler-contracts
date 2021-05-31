@@ -37,15 +37,11 @@ contract('OneShotSchedule - plans', (accounts) => {
   it('initially has no plans', () => this.oneShotSchedule.plansCount().then((count) => assert.strictEqual(count.toString(), '0')))
   it('should add a plan', () => this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.serviceProvider))
   it('should add two plans', async () => {
+    //payed with ERC-20 or 677
     await this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.serviceProvider)
-    await this.testAddPlan(plans[1].price, plans[1].window, this.token.address, this.serviceProvider)
+    //payed with rBTC
+    await this.testAddPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, this.serviceProvider)
   })
-
-  it('should reject if token is not defined', () =>
-    expectRevert(
-      this.testAddPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, this.serviceProvider),
-      'Token address cannot be 0x0'
-    ))
 
   it('should reject plans added by other users', () =>
     expectRevert(this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.requestor), 'Not authorized'))

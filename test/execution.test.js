@@ -1,7 +1,7 @@
 const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
-const { time, expectEvent, expectRevert } = require('@openzeppelin/test-helpers')
+const { time, expectEvent, expectRevert, constants } = require('@openzeppelin/test-helpers')
 const { toBN } = web3.utils
 
 const ONE_DAY = 60 * 60 * 24 // in seconds
@@ -23,30 +23,44 @@ contract('OneShotSchedule - execution', (accounts) => {
     this.getState = (executionId) => this.oneShotSchedule.getState(executionId).then((state) => state.toString())
 
     await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
+    plans[0].token = this.token.address
+    await this.oneShotSchedule.addPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider })
+    plans[1].token = constants.ZERO_ADDRESS
 
-    this.testScheduleWithValue = async (plan, data, value, timestamp) => {
+    this.testScheduleWithValue = async (planId, data, value, timestamp, payWithRBTC) => {
       const to = this.counter.address
       const from = this.requestor
       const gas = toBN(await this.counter.inc.estimateGas())
-      await this.token.approve(this.oneShotSchedule.address, plans[plan].price, { from })
-      await this.oneShotSchedule.purchase(plan, toBN(1), { from })
-      const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, data, gas, timestamp, { from, value })
+      if (payWithRBTC) {
+        await this.oneShotSchedule.purchase(planId, toBN(1), { from, value: plans[planId].price })
+      } else {
+        await this.token.approve(this.oneShotSchedule.address, plans[planId].price, { from })
+        await this.oneShotSchedule.purchase(planId, toBN(1), { from })
+      }
+      const scheduleReceipt = await this.oneShotSchedule.schedule(planId, to, data, gas, timestamp, { from, value })
       return getExecutionId(scheduleReceipt)
     }
+
     this.executeWithTime = async (txId, executionTimestamp) => {
       await time.increaseTo(executionTimestamp)
       await time.advanceBlock()
       return this.oneShotSchedule.execute(txId)
     }
 
-    this.testExecutionWithValue = async (value) => {
+    this.testExecutionWithValue = async (value, planId) => {
       const timestamp = await time.latest()
-      const insideWindowTime = timestamp.add(insideWindow(0))
-      const txId = await this.testScheduleWithValue(0, incData, value, insideWindowTime)
+      const insideWindowTime = timestamp.add(insideWindow(planId))
+      const plan = plans[planId]
+      const payWithRBTC = plan.token === constants.ZERO_ADDRESS
+      const getBalance = payWithRBTC ? web3.eth.getBalance : this.token.balanceOf
+
+      const initialPayeeBalance = await getBalance(this.payee)
+      const initialContractBalance = await getBalance(this.oneShotSchedule.address)
+
+      const txId = await this.testScheduleWithValue(planId, incData, value, insideWindowTime, payWithRBTC)
       await time.increaseTo(insideWindowTime)
       await time.advanceBlock()
-      const initialPayeeBalance = await this.token.balanceOf(this.payee)
-      const initialContractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
+
       await this.oneShotSchedule.execute(txId)
       // Transaction executed status
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
@@ -55,16 +69,11 @@ contract('OneShotSchedule - execution', (accounts) => {
       // Value transferred to contract
       assert.strictEqual(await web3.eth.getBalance(this.counter.address).then((r) => r.toString()), value.toString(), 'wrong balance')
       // token balance transferred from contract to provider
-      const expectedPayeeBalance = initialPayeeBalance.add(plans[0].price)
-      const expectedContractBalance = initialContractBalance.sub(plans[0].price)
+      const expectedPayeeBalance = toBN(initialPayeeBalance).add(plan.price)
+      assert.strictEqual(await getBalance(this.payee).then((r) => r.toString()), expectedPayeeBalance.toString(), 'wrong provider balance')
       assert.strictEqual(
-        await this.token.balanceOf(this.payee).then((r) => r.toString()),
-        expectedPayeeBalance.toString(),
-        'wrong provider balance'
-      )
-      assert.strictEqual(
-        await this.token.balanceOf(this.oneShotSchedule.address).then((r) => r.toString()),
-        expectedContractBalance.toString(),
+        await getBalance(this.oneShotSchedule.address).then((r) => r.toString()),
+        initialContractBalance.toString(),
         'wrong contract balance'
       )
       return txId
@@ -72,13 +81,37 @@ contract('OneShotSchedule - execution', (accounts) => {
   })
 
   describe('success', () => {
-    it('executes a listed a execution', () => this.testExecutionWithValue(toBN(0)))
-    it('executes a listed a execution with value', () => this.testExecutionWithValue(toBN(1e15)))
+    it('executes a listed a execution', () => this.testExecutionWithValue(toBN(0), 0))
+    it('executes a listed a execution rBTC', () => this.testExecutionWithValue(toBN(0), 1))
+
+    it('executes a listed a execution with value', () => this.testExecutionWithValue(toBN(1e15), 0))
+    it('executes a listed a execution rBTC with value', () => this.testExecutionWithValue(toBN(1e15), 1))
   })
 
   describe('failing', () => {
+    beforeEach(() => {
+      this.refundTest = async (planId) => {
+        const timestamp = await time.latest()
+        // scheduled for tomorrow
+        const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
+        const payWithRBTC = plans[planId].token === constants.ZERO_ADDRESS
+        const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp, payWithRBTC)
+        const requestorBalance = await web3.eth.getBalance(this.requestor)
+        // execute after window
+        const receipt = await this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).add(outsideWindow(planId))))
+        // this should reflect that it was late
+        expectEvent.notEmitted(receipt, 'Executed')
+        assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
+        assert.strictEqual(
+          (await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(planId))).toString(),
+          '1',
+          'Schedule not refunded'
+        )
+        assert.strictEqual(await this.getState(txId), ExecutionState.Refunded, 'Execution not failed')
+      }
+    })
     it('cannot execute twice', async () => {
-      const txId = await this.testExecutionWithValue(toBN(0))
+      const txId = await this.testExecutionWithValue(toBN(0), 0)
       return expectRevert(this.oneShotSchedule.execute(txId), 'Already executed')
     })
 
@@ -91,20 +124,9 @@ contract('OneShotSchedule - execution', (accounts) => {
       return expectRevert(this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).sub(outsideWindow(0)))), 'Too soon')
     })
 
-    it('should refund if it executes after timestamp + window', async () => {
-      const timestamp = await time.latest()
-      // scheduled for tomorrow
-      const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
-      const txId = await this.testScheduleWithValue(0, incData, toBN(10), scheduleTimestamp)
-      const requestorBalance = await web3.eth.getBalance(this.requestor)
-      // execute after window
-      const receipt = await this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).add(outsideWindow(0))))
-      // this should reflect that it was late
-      expectEvent.notEmitted(receipt, 'Executed')
-      assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
-      assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(), '1', 'Schedule not refunded')
-      assert.strictEqual(await this.getState(txId), ExecutionState.Refunded, 'Execution not failed')
-    })
+    it('should refund if it executes after timestamp + window', () => this.refundTest(0))
+
+    it('should refund if it executes after timestamp + window - rBTC', () => this.refundTest(1))
 
     it('should go from scheduled to Overdue when time passes', async () => {
       const timestamp = await time.latest()
