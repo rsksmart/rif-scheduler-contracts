@@ -212,32 +212,16 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     }
   }
 
-  function requestorExecutionListCount() external view returns(uint256){
+  function executionsByRequestorCount() external view returns (uint256) {
     return executionsByRequestor[msg.sender].length;
   }
 
-  function requestorExecutionByIndex(uint256 index) external view returns (
-      bytes32 id,
-      address requestor,
-      uint256 plan,
-      address to,
-      bytes memory data,
-      uint256 gas,
-      uint256 timestamp,
-      uint256 value,
-      ExecutionState state
-    ){
-    id = executionsByRequestor[msg.sender][index];
-    Execution memory execution = executions[id];
-
-    requestor = execution.requestor;
-    plan = execution.plan;
-    to = execution.to;
-    data = execution.data;
-    gas = execution.gas;
-    timestamp = execution.timestamp;
-    value = execution.value;
-    state = getState(id);
+  function getExecutionsByRequestor(uint256 fromIndex, uint256 toIndex) external view returns (Execution[] memory executionList) {
+    require(executionsByRequestor[msg.sender].length >= toIndex && fromIndex < toIndex, 'Out of range');
+    executionList = new Execution[](toIndex - fromIndex);
+    for (uint256 i = fromIndex; i < toIndex; i++) {
+      executionList[i - fromIndex] = getExecutionById(executionsByRequestor[msg.sender][i]);
+    }
   }
 
   function cancelScheduling(bytes32 id) external {
