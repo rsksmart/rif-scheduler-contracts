@@ -7,7 +7,6 @@ const {
   plans,
   ExecutionState,
   setupContracts,
-  insideWindow,
   outsideWindow,
   getExecutionId,
   getMultipleExecutionId,
@@ -214,7 +213,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
-      const executionsLeft = await this.oneShotSchedule.remainingExecutions(this.requestor, planId)
+      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount({ from: this.requestor})
 
       const executionList = await this.oneShotSchedule.getExecutionsByRequestor(toBN(0), toBN(quantity), { from: this.requestor })
 
@@ -231,7 +230,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
         assert.strictEqual(scheduledExecution.state.toString(), ExecutionState.Scheduled)
       }
       expectEvent(scheduleReceipt, 'ExecutionRequested')
-      assert.strictEqual(executionsLeft.toString(), '0')
+      assert.strictEqual(executionsByRequestor.toString(), quantity.toString())
     })
 
     it('should fail because of the value', async () => {
