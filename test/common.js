@@ -21,7 +21,9 @@ exports.ExecutionState = {
 exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor) => {
   const token = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
   const token2 = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RDOC', 'DOC')
-  const oneShotSchedule = await deployProxy(OneShotSchedule, [serviceProvider, payee])
+  const oneShotSchedule = await deployProxy(OneShotSchedule, [serviceProvider, payee], {
+    unsafeAllow: ['state-variable-assignment', 'state-variable-immutable', 'delegatecall'],
+  })
 
   await token.transfer(requestor, 100000, { from: contractAdmin })
   await token2.transfer(requestor, 100000, { from: contractAdmin })
@@ -36,6 +38,12 @@ exports.getExecutionId = (tx) => {
   const log = tx.receipt.logs.find((l) => l.event === 'ExecutionRequested')
   return log.args.id
 }
+
+exports.getMultipleExecutionId = (tx) => {
+  const logs = tx.receipt.logs.filter((l) => l.event === 'ExecutionRequested')
+  return logs.map((l) => l.args.id)
+}
+
 exports.getMethodSig = (methodAbi, params = []) => web3.eth.abi.encodeFunctionCall(methodAbi, params)
 
 exports.plans = plans

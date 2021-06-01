@@ -3,7 +3,16 @@ const Counter = artifacts.require('Counter')
 const assert = require('assert')
 const { time, expectRevert } = require('@openzeppelin/test-helpers')
 const { toBN } = web3.utils
-const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getExecutionId, getMethodSig } = require('./common.js')
+const {
+  plans,
+  ExecutionState,
+  setupContracts,
+  insideWindow,
+  outsideWindow,
+  getExecutionId,
+  getMultipleExecutionId,
+  getMethodSig,
+} = require('./common.js')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
 
 const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
@@ -128,6 +137,80 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await time.increaseTo(timestampOutsideWindow)
       await time.advanceBlock()
       return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor }), 'Transaction not scheduled')
+    })
+  })
+
+  describe('Schedule multiple transactions', () => {
+    beforeEach(() => {
+      this.purchaseMany = async (plan, q) => {
+        const price = plans[plan].price
+        await this.token.approve(this.oneShotSchedule.address, price.mul(toBN(q)), { from: this.requestor })
+        await this.oneShotSchedule.purchase(plan, q, { from: this.requestor })
+      }
+
+      this.encodeOneExecution = (execution) => {
+        return web3.eth.abi.encodeParameters(
+          ['uint256', 'address', 'bytes', 'uint256', 'uint256', 'uint256'],
+          [execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value]
+        )
+      }
+
+      this.encodeExecutions = (executionsArr) => {
+        return executionsArr.map((execution) => this.encodeOneExecution(execution))
+      }
+
+      this.getSampleExecutions = async (plan, quantity) => {
+        const result = []
+        const to = this.counter.address
+        const gas = toBN(await this.counter.inc.estimateGas())
+        const timestampIncrement = toBN(100)
+        const timestamp = (await time.latest()).add(toBN(100))
+        const value = toBN(plans[plan].price)
+        const sampleExecution = { plan, to, data: incData, gas, timestamp, value }
+        for (let i = 0; i < quantity; i++) {
+          result.push({ ...sampleExecution, timestamp: timestamp.add(timestampIncrement.mul(toBN(i))) })
+        }
+        return result
+      }
+    })
+
+    it('should schedule 5 executions', async () => {
+      const quantity = 5
+      const planId = 0
+      const totalValue = toBN(quantity).mul(plans[planId].price)
+      this.purchaseMany(planId, quantity)
+      const executions = await this.getSampleExecutions(planId, quantity)
+      const encodedExecutions = this.encodeExecutions(executions)
+      const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
+      const executionsLeft = await this.oneShotSchedule.remainingExecutions(this.requestor, planId)
+
+      const ids = getMultipleExecutionId(scheduleReceipt)
+
+      for (let i = 0; i < quantity; i++) {
+        const scheduledExecution = await this.oneShotSchedule.getSchedule(ids[i])
+        const requestedExecution = executions[i]
+        assert.strictEqual(scheduledExecution[0], this.requestor, 'Not scheduled for this user')
+        assert.strictEqual(scheduledExecution.plan.toString(), requestedExecution.plan.toString(), 'Wrong plan')
+        assert.strictEqual(scheduledExecution.to, requestedExecution.to, 'Wrong contract address')
+        assert.strictEqual(scheduledExecution.data, requestedExecution.data)
+        assert.strictEqual(scheduledExecution.gas.toString(), requestedExecution.gas.toString())
+        assert.strictEqual(scheduledExecution.timestamp.toString(), requestedExecution.timestamp.toString())
+        assert.strictEqual(scheduledExecution.value.toString(), requestedExecution.value.toString())
+        assert.strictEqual(scheduledExecution.state.toString(), ExecutionState.Scheduled)
+      }
+      expectEvent(scheduleReceipt, 'ExecutionRequested')
+      assert.strictEqual(executionsLeft.toString(), '0')
+    })
+
+    it('should fail because of the value', async () => {
+      const quantity = 5
+      const planId = 0
+      const wrongValue = toBN(3)
+      this.purchaseMany(planId, quantity)
+      const executions = await this.getSampleExecutions(planId, quantity)
+      const encodedExecutions = this.encodeExecutions(executions)
+      const scheduleReceipt = this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: wrongValue })
+      return expectRevert(scheduleReceipt, "Executions total value doesn't match")
     })
   })
 })
