@@ -185,7 +185,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const quantity = 5
       const planId = 0
       const totalValue = toBN(quantity).mul(plans[planId].price)
-      this.purchaseMany(planId, quantity)
+      await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
@@ -214,40 +214,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const quantity = 5
       const planId = 0
       const totalValue = toBN(quantity).mul(plans[planId].price)
-      this.purchaseMany(planId, quantity)
-      const executions = await this.getSampleExecutions(planId, quantity)
-      const encodedExecutions = this.encodeExecutions(executions)
-      const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
-<<<<<<< HEAD
-      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount({ from: this.requestor })
-=======
-      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount(this.requestor)
->>>>>>> d7e3798 (Requestor as param)
-
-      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(quantity))
-
-      for (let i = 0; i < quantity; i++) {
-        const scheduledExecution = await this.oneShotSchedule.getExecutionById(ids[i])
-        const requestedExecution = executions[i]
-        assert.strictEqual(scheduledExecution[0], this.requestor, 'Not scheduled for this user')
-        assert.strictEqual(scheduledExecution.plan.toString(), requestedExecution.plan.toString(), 'Wrong plan')
-        assert.strictEqual(scheduledExecution.to, requestedExecution.to, 'Wrong contract address')
-        assert.strictEqual(scheduledExecution.data, requestedExecution.data)
-        assert.strictEqual(scheduledExecution.gas.toString(), requestedExecution.gas.toString())
-        assert.strictEqual(scheduledExecution.timestamp.toString(), requestedExecution.timestamp.toString())
-        assert.strictEqual(scheduledExecution.value.toString(), requestedExecution.value.toString())
-        assert.strictEqual(scheduledExecution.state.toString(), ExecutionState.Scheduled)
-      }
-      expectEvent(scheduleReceipt, 'ExecutionRequested')
-      assert.strictEqual(executionsByRequestor.toString(), quantity.toString())
-    })
-
-    it('should schedule 5 executions and get all', async () => {
-      // Tested with getExecutionsByRequestor
-      const quantity = 5
-      const planId = 0
-      const totalValue = toBN(quantity).mul(plans[planId].price)
-      this.purchaseMany(planId, quantity)
+      await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
