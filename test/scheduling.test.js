@@ -35,7 +35,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
       const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
       const executionId = getExecutionId(scheduleReceipt)
-      const actual = await this.oneShotSchedule.getExecutionsById(executionId)
+      const actual = await this.oneShotSchedule.getExecutionById(executionId)
       const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
 
       assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
@@ -99,7 +99,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       expectEvent(cancelTx, 'ExecutionCancelled', { id: txId })
 
       //State should be Cancelled
-      const scheduling = await this.oneShotSchedule.getExecutionsById(txId)
+      const scheduling = await this.oneShotSchedule.getExecutionById(txId)
       assert.strictEqual(scheduling[7].toString(), ExecutionState.Cancelled, 'Not cancelled')
 
       //Scheduling should be refunded
@@ -186,10 +186,8 @@ contract('OneShotSchedule - scheduling', (accounts) => {
 
       const ids = getMultipleExecutionId(scheduleReceipt)
 
-      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(toBN(0), toBN(quantity), { from: this.requestor })
-
       for (let i = 0; i < quantity; i++) {
-        const scheduledExecution = await this.oneShotSchedule.getExecutionsById(ids[i])
+        const scheduledExecution = await this.oneShotSchedule.getExecutionById(ids[i])
         const requestedExecution = executions[i]
         assert.strictEqual(scheduledExecution[0], this.requestor, 'Not scheduled for this user')
         assert.strictEqual(scheduledExecution.plan.toString(), requestedExecution.plan.toString(), 'Wrong plan')
@@ -213,9 +211,9 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
-      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount({ from: this.requestor})
+      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount(this.requestor)
 
-      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(toBN(0), toBN(quantity), { from: this.requestor })
+      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(quantity))
 
       for (let i = 0; i < quantity; i++) {
         const scheduledExecution = executionList[i]

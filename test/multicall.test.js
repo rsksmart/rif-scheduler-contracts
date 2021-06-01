@@ -30,7 +30,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     const schedule = this.oneShotSchedule.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
     const results = await this.oneShotSchedule.multicall([purchaseCall, schedule], { from: this.requestor })
     const executionId = getExecutionId(results)
-    const actual = await this.oneShotSchedule.getExecutionsById(executionId)
+    const actual = await this.oneShotSchedule.getExecutionById(executionId)
     const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
 
     assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')

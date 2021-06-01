@@ -191,20 +191,24 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     require(totalValue == msg.value, "Executions total value doesn't match");
   }
 
-  function getExecutionsById(bytes32 id) public view returns (Execution memory execution) {
+  function getExecutionById(bytes32 id) public view returns (Execution memory execution) {
     execution = executions[id];
     execution.state = getState(id);
   }
 
-  function executionsByRequestorCount() external view returns (uint256) {
-    return executionsByRequestor[msg.sender].length;
+  function executionsByRequestorCount(address requestor) external view returns (uint256) {
+    return executionsByRequestor[requestor].length;
   }
 
-  function getExecutionsByRequestor(uint256 fromIndex, uint256 toIndex) external view returns (Execution[] memory executionList) {
-    require(executionsByRequestor[msg.sender].length >= toIndex && fromIndex < toIndex, 'Out of range');
+  function getExecutionsByRequestor(
+    address requestor,
+    uint256 fromIndex,
+    uint256 toIndex
+  ) external view returns (Execution[] memory executionList) {
+    require(executionsByRequestor[requestor].length >= toIndex && fromIndex < toIndex, 'Out of range');
     executionList = new Execution[](toIndex - fromIndex);
     for (uint256 i = fromIndex; i < toIndex; i++) {
-      executionList[i - fromIndex] = getExecutionsById(executionsByRequestor[msg.sender][i]);
+      executionList[i - fromIndex] = getExecutionById(executionsByRequestor[requestor][i]);
     }
   }
 
