@@ -39,7 +39,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
 
   mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
   mapping(bytes32 => Execution) private executions;
-  mapping(address => bytes32[]) private executionsByRequestor;
+  mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions
 
   address private immutable self = address(this);
 
