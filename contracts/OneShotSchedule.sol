@@ -206,22 +206,6 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     return executionsByRequestor[requestor].length;
   }
 
-  function getExecutionByRequestor(
-    address requestor,
-    uint256 fromIndex,
-    uint256 toIndex
-  ) external view returns (Execution[] memory executionList) {
-    require(executionsByRequestor[requestor].length >= toIndex && fromIndex < toIndex, 'Out of range');
-    executionList = new Execution[](toIndex - fromIndex);
-    for (uint256 i = fromIndex; i < toIndex; i++) {
-      executionList[i - fromIndex] = getExecutionById(executionsByRequestor[requestor][i]);
-    }
-  }
-
-  function executionsByRequestorCount() external view returns (uint256) {
-    return executionsByRequestor[msg.sender].length;
-  }
-
   function getExecutionsByRequestor(
     address requestor,
     uint256 fromIndex,
@@ -230,7 +214,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     require(executionsByRequestor[requestor].length >= toIndex && fromIndex < toIndex, 'Out of range');
     executionList = new Execution[](toIndex - fromIndex);
     for (uint256 i = fromIndex; i < toIndex; i++) {
-      executionList[i - fromIndex] = getExecutionById(executionsByRequestor[msg.sender][i]);
+      executionList[i - fromIndex] = getExecutionById(executionsByRequestor[requestor][i]);
     }
   }
 

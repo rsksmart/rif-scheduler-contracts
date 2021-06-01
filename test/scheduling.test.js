@@ -219,7 +219,6 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
       const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount(this.requestor)
-
       const executionList = await this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(quantity))
 
       for (let i = 0; i < quantity; i++) {
