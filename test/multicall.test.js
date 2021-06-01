@@ -1,5 +1,4 @@
 const Counter = artifacts.require('Counter')
-
 const assert = require('assert')
 const { time } = require('@openzeppelin/test-helpers')
 const { toBN } = web3.utils
@@ -31,7 +30,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     const schedule = this.oneShotSchedule.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
     const results = await this.oneShotSchedule.multicall([purchaseCall, schedule], { from: this.requestor })
     const executionId = getExecutionId(results)
-    const actual = await this.oneShotSchedule.getSchedule(executionId)
+    const actual = await this.oneShotSchedule.getExecutionById(executionId)
     const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
 
     assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
