@@ -193,10 +193,8 @@ contract('OneShotSchedule - scheduling', (accounts) => {
 
       const ids = getMultipleExecutionId(scheduleReceipt)
 
-      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(toBN(0), toBN(quantity), { from: this.requestor })
-
       for (let i = 0; i < quantity; i++) {
-        const scheduledExecution = await this.oneShotSchedule.getExecutionsById(ids[i])
+        const scheduledExecution = await this.oneShotSchedule.getExecutionById(ids[i])
         const requestedExecution = executions[i]
         assert.strictEqual(scheduledExecution[0], this.requestor, 'Not scheduled for this user')
         assert.strictEqual(scheduledExecution.plan.toString(), requestedExecution.plan.toString(), 'Wrong plan')
@@ -220,9 +218,13 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
+<<<<<<< HEAD
       const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount({ from: this.requestor })
+=======
+      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount(this.requestor)
+>>>>>>> d7e3798 (Requestor as param)
 
-      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(toBN(0), toBN(quantity), { from: this.requestor })
+      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(quantity))
 
       for (let i = 0; i < quantity; i++) {
         const scheduledExecution = await this.oneShotSchedule.getExecutionById(ids[i])
