@@ -80,6 +80,13 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       'No balance available'
     )
   })
+  it('cannot schedule if already scheduled', async () => {
+    const scheduleTime = (await time.latest()).add(toBN(100))
+    // buy one, use one
+    await this.testScheduleWithValue(0, toBN(0), scheduleTime)
+    // try to schedule another
+    return expectRevert(this.testScheduleWithValue(0, toBN(0), scheduleTime), 'Already scheduled')
+  })
 
   describe('Scheduling cancellation', () => {
     beforeEach(() => {
@@ -178,7 +185,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const quantity = 5
       const planId = 0
       const totalValue = toBN(quantity).mul(plans[planId].price)
-      this.purchaseMany(planId, quantity)
+      await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
@@ -207,12 +214,11 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const quantity = 5
       const planId = 0
       const totalValue = toBN(quantity).mul(plans[planId].price)
-      this.purchaseMany(planId, quantity)
+      await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
       const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount(this.requestor)
-
       const executionList = await this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(quantity))
 
       for (let i = 0; i < quantity; i++) {

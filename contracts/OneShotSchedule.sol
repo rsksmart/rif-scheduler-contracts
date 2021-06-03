@@ -73,7 +73,6 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     uint256 window,
     IERC677 token
   ) external onlyProvider {
-    require(address(token) != address(0x0), 'Token address cannot be 0x0');
     plans.push(Plan(price, window, token, true));
     emit PlanAdded(plans.length - 1, price, address(token), window);
   }
@@ -111,11 +110,16 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     emit ExecutionPurchased(requestor, plan, amount);
   }
 
-  // purcahse with ERC-20
-  function purchase(uint256 plan, uint256 quantity) external {
-    doPurchase(msg.sender, plan, quantity);
-
-    require(plans[plan].token.transferFrom(msg.sender, address(this), totalPrice(plan, quantity)), "Payment did't pass");
+  // purcahse with ERC-20 and rBTC, for rBTC the plan's token address 0x0
+  function purchase(uint256 plan, uint256 quantity) external payable {
+    if (address(plans[plan].token) != address(0x0)) {
+      require(msg.value == 0, 'rBTC not accepted for this plan');
+      doPurchase(msg.sender, plan, quantity);
+      require(plans[plan].token.transferFrom(msg.sender, address(this), totalPrice(plan, quantity)), "Payment did't pass");
+    } else {
+      require(msg.value == totalPrice(plan, quantity), "Transferred amount doesn't match total purchase");
+      doPurchase(msg.sender, plan, quantity);
+    }
   }
 
   // purcahse with ERC-677
@@ -161,8 +165,10 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     // timestamp manipulation should be considered in the window by the service provider
     // slither-disable-next-line timestamp
     require(block.timestamp <= execution.timestamp, 'Cannot schedule it in the past');
-    remainingExecutions[msg.sender][execution.plan] -= 1;
     id = hash(execution);
+    // checking existence, no execution can be scheduled with timestamp 0
+    require(executions[id].timestamp == 0, 'Already scheduled');
+    remainingExecutions[msg.sender][execution.plan] -= 1;
     executions[id] = execution;
     executionsByRequestor[msg.sender].push(id);
     emit ExecutionRequested(id, execution.timestamp);
@@ -269,7 +275,11 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
       execution.state = ExecutionState.ExecutionFailed;
     }
 
-    require(plans[execution.plan].token.transfer(payee, plans[execution.plan].pricePerExecution), "Couldn't transfer to payee");
+    if (address(plans[execution.plan].token) != address(0x0)) {
+      require(plans[execution.plan].token.transfer(payee, plans[execution.plan].pricePerExecution), "Couldn't transfer to payee");
+    } else {
+      payable(payee).transfer(plans[execution.plan].pricePerExecution);
+    }
   }
 
   function multicall(bytes[] calldata data) external returns (bytes[] memory results) {
