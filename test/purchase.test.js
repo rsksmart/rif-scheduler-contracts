@@ -77,11 +77,9 @@ contract('OneShotSchedule - purchase', (accounts) => {
     it("shouldn't purchase if payment fails", () =>
       // making it fail because there's no amount approved
       expectRevert.unspecified(this.oneShotSchedule.purchase(0, 1, { from: this.requestor })))
-    it('should receive rBTC tokens to purchase 10 executions', () =>
+    it('should revert rBTC not accepted for the plan', () =>
       expectRevert(this.testRBTCPurchase(0, toBN(10), plans[0].price.mul(toBN(10))), 'rBTC not accepted for this plan'))
-    it('should receive rBTC tokens to purchase 10 executions', () =>
+    it('should revert, payed with rBTC with wrong amount', () =>
       expectRevert(this.testRBTCPurchase(1, toBN(10), plans[1].price), "Transferred amount doesn't match total purchase."))
   })
-
-  //rBTC not accepted for this plan
 })

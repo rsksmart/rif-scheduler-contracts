@@ -1,5 +1,4 @@
 const Counter = artifacts.require('Counter')
-
 const assert = require('assert')
 const { time, expectRevert } = require('@openzeppelin/test-helpers')
 const { toBN } = web3.utils
@@ -23,17 +22,17 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
     this.oneShotSchedule = oneShotSchedule
+    await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
 
     this.counter = await Counter.new()
-
+    this.gas = toBN(await this.counter.inc.estimateGas())
+  
     await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
 
     this.testScheduleWithValue = async (plan, value, timestamp) => {
       const to = this.counter.address
-      const gas = toBN(await this.counter.inc.estimateGas())
-      await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
       await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
-      const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, gas, timestamp, { from: this.requestor, value })
+      const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, this.gas, timestamp, { from: this.requestor, value })
       const executionId = getExecutionId(scheduleReceipt)
       const actual = await this.oneShotSchedule.getExecutionById(executionId)
       const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
@@ -42,7 +41,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')
       assert.strictEqual(actual[2], to, 'Wrong contract address')
       assert.strictEqual(actual[3], incData)
-      assert.strictEqual(actual[4].toString(), gas.toString())
+      assert.strictEqual(actual[4].toString(), this.gas.toString())
       assert.strictEqual(actual[5].toString(), timestamp.toString())
       assert.strictEqual(actual[6].toString(), value.toString())
       assert.strictEqual(actual[7].toString(), ExecutionState.Scheduled)
@@ -52,9 +51,35 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     }
   })
 
+
+  it('should return Nonexistent state for a not scheduled execution', async () => {
+    const txState = await this.oneShotSchedule.getState('0x68a2d4f6db1ab0ae441c0918ce5bbc0b8e30243fed88cd429e4b97f126c3f868', { from: this.requestor })
+    assert.strictEqual(txState.toString(),ExecutionState.Nonexistent,'Wrong status')
+  })
+
   it('schedule a new execution', async () => {
     const scheduleTime = (await time.latest()).add(toBN(100))
     return this.testScheduleWithValue(0, toBN(0), scheduleTime)
+  })
+
+  it('schedule a new execution even if the plan was cancelled', async () => {
+    const timestamp = (await time.latest()).add(toBN(100))
+    const plan = 0
+    const value = toBN(0)
+    await this.oneShotSchedule.purchase(plan, 2, { from: this.requestor })
+    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'2',`Wrong initial balance`)
+    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'2',`Wrong initial balance after plan cancellation`) 
+    const scheduleReceipt1 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp, { from: this.requestor, value })
+    const executionId1 = getExecutionId(scheduleReceipt1)
+    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'1',`Wrong balance - scheduled 1st`)
+    await this.oneShotSchedule.removePlan(0, { from: this.serviceProvider })
+    const scheduleReceipt2 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp.add(toBN(100)), { from: this.requestor, value })
+    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'0',`Wrong balance - scheduled 2nd`)
+    const executionId2 = getExecutionId(scheduleReceipt2)
+    const actual1 = await this.oneShotSchedule.getExecutionById(executionId1)
+    const actual2 = await this.oneShotSchedule.getExecutionById(executionId2)
+    assert.strictEqual(actual1[7].toString(), ExecutionState.Scheduled)
+    assert.strictEqual(actual2[7].toString(), ExecutionState.Scheduled)
   })
 
   it('schedule a new execution with value', async () => {
@@ -241,7 +266,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const quantity = 5
       const planId = 0
       const wrongValue = toBN(3)
-      this.purchaseMany(planId, quantity)
+      await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
       const scheduleReceipt = this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: wrongValue })

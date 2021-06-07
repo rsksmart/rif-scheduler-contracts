@@ -18,7 +18,7 @@ module.exports = async (deployer, network, accounts) => {
 
   if (network === 'rskTestnet') {
     await OneShotSchedule.deployed().then((oneShotSchedule) =>
-      oneShotSchedule.addPlan('10000000000000', '300', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
+      oneShotSchedule.addPlan('10000000000000', '7200', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
     )
   }
 
