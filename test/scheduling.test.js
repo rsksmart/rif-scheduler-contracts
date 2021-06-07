@@ -26,7 +26,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
 
     this.counter = await Counter.new()
     this.gas = toBN(await this.counter.inc.estimateGas())
-  
+
     await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
 
     this.testScheduleWithValue = async (plan, value, timestamp) => {
@@ -51,10 +51,11 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     }
   })
 
-
   it('should return Nonexistent state for a not scheduled execution', async () => {
-    const txState = await this.oneShotSchedule.getState('0x68a2d4f6db1ab0ae441c0918ce5bbc0b8e30243fed88cd429e4b97f126c3f868', { from: this.requestor })
-    assert.strictEqual(txState.toString(),ExecutionState.Nonexistent,'Wrong status')
+    const txState = await this.oneShotSchedule.getState('0x68a2d4f6db1ab0ae441c0918ce5bbc0b8e30243fed88cd429e4b97f126c3f868', {
+      from: this.requestor,
+    })
+    assert.strictEqual(txState.toString(), ExecutionState.Nonexistent, 'Wrong status')
   })
 
   it('schedule a new execution', async () => {
@@ -67,14 +68,32 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     const plan = 0
     const value = toBN(0)
     await this.oneShotSchedule.purchase(plan, 2, { from: this.requestor })
-    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'2',`Wrong initial balance`)
-    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'2',`Wrong initial balance after plan cancellation`) 
-    const scheduleReceipt1 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp, { from: this.requestor, value })
+    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(), '2', `Wrong initial balance`)
+    assert.strictEqual(
+      (await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),
+      '2',
+      `Wrong initial balance after plan cancellation`
+    )
+    const scheduleReceipt1 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp, {
+      from: this.requestor,
+      value,
+    })
     const executionId1 = getExecutionId(scheduleReceipt1)
-    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'1',`Wrong balance - scheduled 1st`)
+    assert.strictEqual(
+      (await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),
+      '1',
+      `Wrong balance - scheduled 1st`
+    )
     await this.oneShotSchedule.removePlan(0, { from: this.serviceProvider })
-    const scheduleReceipt2 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp.add(toBN(100)), { from: this.requestor, value })
-    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),'0',`Wrong balance - scheduled 2nd`)
+    const scheduleReceipt2 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp.add(toBN(100)), {
+      from: this.requestor,
+      value,
+    })
+    assert.strictEqual(
+      (await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),
+      '0',
+      `Wrong balance - scheduled 2nd`
+    )
     const executionId2 = getExecutionId(scheduleReceipt2)
     const actual1 = await this.oneShotSchedule.getExecutionById(executionId1)
     const actual2 = await this.oneShotSchedule.getExecutionById(executionId2)
