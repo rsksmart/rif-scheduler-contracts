@@ -1,7 +1,6 @@
 const ERC677 = artifacts.require('ERC677')
 const OneShotSchedule = artifacts.require('OneShotSchedule')
 const Counter = artifacts.require('Counter')
-const { deployProxy } = require('@openzeppelin/truffle-upgrades')
 module.exports = async (deployer, network, accounts) => {
   const [contractAdmin, payee] = accounts
 
@@ -12,7 +11,7 @@ module.exports = async (deployer, network, accounts) => {
   }
 
   if (network !== 'test' && network !== 'soliditycoverage') {
-    await deployProxy(OneShotSchedule, [contractAdmin, payee], { deployer })
+    await deployer.deploy(OneShotSchedule, contractAdmin, payee)
     console.log('OneShotSchedule Contract implementation: ' + OneShotSchedule.address)
   }
 
