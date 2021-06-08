@@ -10,12 +10,13 @@ const plans = [
 ]
 
 exports.ExecutionState = {
-  Scheduled: '0',
-  ExecutionSuccessful: '1',
-  ExecutionFailed: '2',
-  Overdue: '3',
-  Refunded: '4',
-  Cancelled: '5',
+  Nonexistent: '0',
+  Scheduled: '1',
+  ExecutionSuccessful: '2',
+  ExecutionFailed: '3',
+  Overdue: '4',
+  Refunded: '5',
+  Cancelled: '6',
 }
 
 exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor) => {
