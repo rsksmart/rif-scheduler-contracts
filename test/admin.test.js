@@ -16,6 +16,44 @@ contract('OneShotSchedule - admin', (accounts) => {
     it('should reject if provider is not defined', () =>
       expectRevert(OneShotSchedule.new(this.serviceProvider, constants.ZERO_ADDRESS), 'Payee address cannot be 0x0'))
   })
+  
+  describe.skip('Cancel All', () => {
+    beforeEach(async () => {
+      const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+      this.oneShotSchedule = oneShotSchedule
+      // add balance to users
+      
+      // add plans:
+      // - erc677
+      // - erc20
+      // -rbtc
+
+      this.buyPlans = ()=>{}
+
+    })
+    it('should reject if not admin', () =>
+      expectRevert('', 'Not authorized'))
+    it('should reject if not paused', () =>
+      expectRevert('', "Pausable: not paused"))
+    it('should cancel all pending plans', () => {
+
+
+      // expect planCount = 3
+      // add executions from different users
+      // user1 purchase many of each
+      // user2 purchase 0,1,2
+      // expect remaining executions to match
+      // advance time and execute some
+      // expect remaining executions to match
+      // cancelAll
+      // expect remaining executions to be 0
+      // expect tokens total initial balances (users + sp) to equal final balances
+      // expect rbtc total initial balances (users + sp) to equal final balances + gas used
+      // expect contract balance to be 0 (for rbtc and all tokens)
+      console.log('done')
+    })
+    
+  })
 
   describe('payee', () => {
     beforeEach(async () => {

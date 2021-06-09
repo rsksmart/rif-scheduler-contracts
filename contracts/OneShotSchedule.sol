@@ -31,16 +31,18 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 window;
     IERC677 token;
     bool active;
+    address[] users;
   }
 
   address public serviceProvider;
   address public payee;
 
   Plan[] public plans;
+  bytes32[] private executionsIds;
 
   mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
-  mapping(bytes32 => Execution) private executions;
   mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions
+  mapping(bytes32 => Execution) private executions;
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanRemoved(uint256 indexed index);
@@ -71,14 +73,19 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 window,
     IERC677 token
   ) external onlyProvider whenNotPaused {
-    plans.push(Plan(price, window, token, true));
+    address[] memory users = new address[](0);
+    plans.push(Plan(price, window, token, true, users));
     emit PlanAdded(plans.length - 1, price, address(token), window);
   }
 
-  function removePlan(uint256 plan) external onlyProvider {
+  function _removePlan(uint256 plan) private onlyProvider {
     require(plans[plan].active, 'The plan is already inactive');
     plans[plan].active = false;
     emit PlanRemoved(plan);
+  }
+
+  function removePlan(uint256 plan) external onlyProvider {
+    _removePlan(plan);
   }
 
   function plansCount() external view returns (uint256) {
@@ -90,12 +97,48 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     payee = payee_;
   }
 
+  function totalPrice(uint256 plan, uint256 quantity) private view returns (uint256) {
+    return quantity * plans[plan].pricePerExecution;
+  }
+
+  function _refundPlan(uint256 plan, address requestor) internal {
+    uint256 amountToRefund = totalPrice(plan, remainingExecutions[requestor][plan]);
+    remainingExecutions[requestor][plan] = 0;
+    if(amountToRefund == 0) return;
+    if(address(plans[plan].token) == address(0x0)){
+      payable(requestor).transfer(amountToRefund);
+    } else {
+      plans[plan].token.transfer(requestor, amountToRefund);
+    }
+  }
+
+  function cancelAll() external onlyProvider whenPaused {
+    // refund and remove plans
+    for(uint256 i=0; i<plans.length; i++){
+      address[] memory planUsers = plans[i].users;
+      for(uint256 j=0; j< planUsers.length; j++) {
+        _refundPlan(i, planUsers[j]);
+      }
+       _removePlan(i);
+    }
+    // refund pending executions
+    for(uint256 i=0; i<executionsIds.length; i++){
+      Execution memory execution = executions[executionsIds[i]];
+      if(execution.state == ExecutionState.Scheduled) {
+        _cancelScheduling(executionsIds[i]);
+      } 
+    }
+  }
+
   //////////////
   // PURCHASE //
   //////////////
 
-  function totalPrice(uint256 plan, uint256 quantity) private view returns (uint256) {
-    return quantity * plans[plan].pricePerExecution;
+  function find(address[] memory addresses, address addressToFind) pure private returns(bool) {
+      for (uint256 i = 0; i < addresses.length; i++) {   
+        if(addresses[i] == addressToFind) return true;
+      } 
+      return false;
   }
 
   function doPurchase(
@@ -104,6 +147,9 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 amount
   ) private whenNotPaused {
     require(plans[plan].active, 'Inactive plan');
+    if(find(plans[plan].users,requestor) == false) {
+      plans[plan].users.push(requestor);
+    }
     remainingExecutions[requestor][plan] += amount;
     emit ExecutionPurchased(requestor, plan, amount);
   }
@@ -169,6 +215,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     remainingExecutions[msg.sender][execution.plan] -= 1;
     executions[id] = execution;
     executionsByRequestor[msg.sender].push(id);
+    executionsIds.push(id);
     emit ExecutionRequested(id, execution.timestamp);
   }
 
@@ -216,16 +263,18 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     }
   }
 
-  function cancelScheduling(bytes32 id) external {
+  function _cancelScheduling(bytes32 id) private {
     Execution storage execution = executions[id];
-
-    require(getState(id) == ExecutionState.Scheduled, 'Transaction not scheduled');
-    require(msg.sender == execution.requestor, 'Not authorized');
-
     execution.state = ExecutionState.Cancelled;
     remainingExecutions[execution.requestor][execution.plan] += 1;
     emit ExecutionCancelled(id);
     payable(execution.requestor).transfer(execution.value);
+  }
+
+  function cancelScheduling(bytes32 id) external {
+    require(getState(id) == ExecutionState.Scheduled, 'Transaction not scheduled');
+    require(msg.sender == executions[id].requestor, 'Not authorized');
+    _cancelScheduling(id);
   }
 
   ///////////////
