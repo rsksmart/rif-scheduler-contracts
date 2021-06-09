@@ -3,16 +3,18 @@
   "version": "1.0.0",
   "description": "RIF Scheduler contracts",
   "files": [
-    "/contracts",
-    "!/contracts/Migrations.sol"
+    "/contracts/OneShotSchedule.sol",
+    "OneShotSchedule*.json"
   ],
   "scripts": {
-    "test": "npx truffle compile --all && npx truffle test",
+    "compile": "npx truffle compile --all",
+    "test": "npm run compile && npx truffle test",
     "coverage": "npx truffle run coverage",
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "deploy:ganache": "npx truffle migrate --network ganache",
-    "deploy:rsk-testnet": "npx truffle migrate --network rskTestnet"
+    "deploy:rsk-testnet": "npx truffle migrate --network rskTestnet",
+    "prepublish": "npm run compile && node datagen.js"
   },
   "repository": {
     "type": "git",
