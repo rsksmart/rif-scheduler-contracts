@@ -110,7 +110,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     if (address(plans[plan].token) == address(0x0)) {
       payable(msg.sender).transfer(amountToRefund);
     } else {
-      require(plans[plan].token.transfer(msg.sender, amountToRefund),"Refund failed");
+      require(plans[plan].token.transfer(msg.sender, amountToRefund), 'Refund failed');
     }
   }
 
