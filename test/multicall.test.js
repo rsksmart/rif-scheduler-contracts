@@ -6,7 +6,7 @@ const { plans, ExecutionState, setupContracts, getExecutionId, getMethodSig } = 
 
 const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 
-contract('OneShotSchedule - scheduling', (accounts) => {
+contract('OneShotSchedule - multicall', (accounts) => {
   beforeEach(async () => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 

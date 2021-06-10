@@ -15,15 +15,18 @@ contract('OneShotSchedule - purchase', (accounts) => {
 
     await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
     await this.oneShotSchedule.addPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider })
+    await this.oneShotSchedule.addPlan(toBN(0), plans[1].window, this.token.address, { from: this.serviceProvider }) //free plan
+    await this.oneShotSchedule.addPlan(toBN(0), plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider }) //free plan
 
-    this.testERC20Purchase = async (plan, value) => {
+    this.testERC20Purchase = async (planId, value) => {
+      const plan = await this.oneShotSchedule.plans(planId)
       await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
-      await this.oneShotSchedule.purchase(plan, value, { from: this.requestor })
-      const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
+      await this.oneShotSchedule.purchase(planId, value, { from: this.requestor })
+      const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, planId)
       const contractBalance = await this.token.balanceOf(this.oneShotSchedule.address)
 
       assert.strictEqual(scheduled.toString(10), value.toString(10), `Didn't schedule ${value}`)
-      assert.strictEqual(contractBalance.toString(10), value.mul(plans[0].price).toString(10), 'Balance mismatch')
+      assert.strictEqual(contractBalance.toString(10), value.mul(toBN(plan.pricePerExecution)).toString(10), 'Balance mismatch')
     }
 
     this.testERC677Purchase = async (plan, executions, totalToTransfer) => {
@@ -109,8 +112,40 @@ contract('OneShotSchedule - purchase', (accounts) => {
       assert.strictEqual(initialRequestorBalance.sub(finalRequestorBalance).toString(), '0', "Balance doesn't match")
     })
 
+    it('should cancel the plans - ERC20/677 - free', async () => {
+      const planId = 2
+      const quantity = toBN(10)
+      const plan = await this.oneShotSchedule.plans(planId)
+      const initialRequestorBalance = toBN(await this.getBalance(plan.token)(this.requestor))
+      await this.testERC20Purchase(planId, quantity)
+      await this.oneShotSchedule.pause({ from: this.serviceProvider })
+      await this.oneShotSchedule.requestPlanRefund(planId, { from: this.requestor })
+      const finalRequestorBalance = toBN(await this.getBalance(plan.token)(this.requestor))
+      const finalRemainingExecutions = await this.oneShotSchedule.remainingExecutions(this.requestor, planId)
+      assert.strictEqual(finalRemainingExecutions.toString(), '0', 'Not refunded')
+      assert.strictEqual(initialRequestorBalance.sub(finalRequestorBalance).toString(), '0', "Balance doesn't match")
+    })
+
     it('should cancel the plans - rBTC', async () => {
       const planId = 1
+      const quantity = toBN(10)
+      const plan = await this.oneShotSchedule.plans(planId)
+      const totalAmount = quantity.mul(toBN(plan.pricePerExecution))
+      await this.testRBTCPurchase(planId, quantity, totalAmount)
+      const initialRequestorBalance = toBN(await this.getBalance(plan.token)(this.requestor)).add(totalAmount)
+      await this.oneShotSchedule.pause({ from: this.serviceProvider })
+      const refundTx = await this.oneShotSchedule.requestPlanRefund(planId, { from: this.requestor })
+      const tx = await web3.eth.getTransaction(refundTx.tx)
+      const refundTxUsedGas = toBN(refundTx.receipt.gasUsed * tx.gasPrice)
+      const finalRequestorBalance = toBN(await this.getBalance(plan.token)(this.requestor))
+      const finalRemainingExecutions = await this.oneShotSchedule.remainingExecutions(this.requestor, planId)
+
+      assert.strictEqual(finalRemainingExecutions.toString(), '0', 'Not refunded')
+      assert.strictEqual(initialRequestorBalance.sub(finalRequestorBalance.add(refundTxUsedGas)).toString(), '0', "Balance doesn't match")
+    })
+
+    it('should cancel free plans - rBTC', async () => {
+      const planId = 3
       const quantity = toBN(10)
       const plan = await this.oneShotSchedule.plans(planId)
       const totalAmount = quantity.mul(toBN(plan.pricePerExecution))

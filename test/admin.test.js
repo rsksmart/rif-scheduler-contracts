@@ -30,6 +30,17 @@ contract('OneShotSchedule - admin', (accounts) => {
 
     it('should not pause the contract, if not the service provider', async () =>
       expectRevert(this.oneShotSchedule.pause({ from: this.requestor }), 'Not authorized'))
+
+    it('should unpause the contract', async () => {
+      await this.oneShotSchedule.pause({ from: this.serviceProvider })
+      await this.oneShotSchedule.unpause({ from: this.serviceProvider })
+      assert.ok(!(await this.oneShotSchedule.paused()), 'Not unpaused')
+    })
+
+    it('should not pause the contract, if not the service provider', async () => {
+      await this.oneShotSchedule.pause({ from: this.serviceProvider })
+      return expectRevert(this.oneShotSchedule.unpause({ from: this.requestor }), 'Not authorized')
+    })
   })
 
   describe('payee', () => {

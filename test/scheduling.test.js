@@ -189,6 +189,9 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const txId = await this.scheduleOneValid(toBN(1e15))
       return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.serviceProvider }), 'Not authorized')
     })
+
+    it('should fail to list executions out of range', async () =>
+      expectRevert(this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(1000000)), 'Out of range'))
   })
 
   describe('Schedule multiple transactions', () => {
