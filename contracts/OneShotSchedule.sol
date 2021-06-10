@@ -144,7 +144,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   }
 
   // If the service provider pauses the contract, it means that is no longer
-  // providing the service. In this case who have bought any plan can request
+  // providing the service. In this case, users that have bought any plan can request
   // a refund.
   function requestPlanRefund(uint256 plan) external whenPaused {
     require(remainingExecutions[msg.sender][plan] > 0, 'No balance to refund');
