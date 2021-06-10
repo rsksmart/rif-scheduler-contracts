@@ -272,7 +272,7 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   }
 
   function cancelScheduling(bytes32 id) external {
-    require(getState(id) == ExecutionState.Scheduled, 'Transaction not scheduled');
+    require(executions[id].state == ExecutionState.Scheduled, 'Transaction not scheduled'); // Checking state directly to consider Scheduled and Overdue
     require(msg.sender == executions[id].requestor, 'Not authorized');
     _cancelScheduling(id);
   }
