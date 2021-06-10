@@ -12,7 +12,7 @@ const failData = getMethodSig({ inputs: [], name: 'fail', type: 'function' })
 
 contract('OneShotSchedule - execution', (accounts) => {
   beforeEach(async () => {
-    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
+    ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider, this.anotherAccount] = accounts
 
     const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
@@ -27,11 +27,13 @@ contract('OneShotSchedule - execution', (accounts) => {
     await this.oneShotSchedule.addPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider })
     plans[1].token = constants.ZERO_ADDRESS
 
-    this.testScheduleWithValue = async (planId, data, value, timestamp, payWithRBTC) => {
+    this.payWithRBTC = (planId) => plans[planId].token === constants.ZERO_ADDRESS
+
+    this.testScheduleWithValue = async (planId, data, value, timestamp) => {
       const to = this.counter.address
       const from = this.requestor
       const gas = toBN(await this.counter.inc.estimateGas())
-      if (payWithRBTC) {
+      if (this.payWithRBTC(planId)) {
         await this.oneShotSchedule.purchase(planId, toBN(1), { from, value: plans[planId].price })
       } else {
         await this.token.approve(this.oneShotSchedule.address, plans[planId].price, { from })
@@ -44,24 +46,19 @@ contract('OneShotSchedule - execution', (accounts) => {
     this.executeWithTime = async (txId, executionTimestamp) => {
       await time.increaseTo(executionTimestamp)
       await time.advanceBlock()
-      return this.oneShotSchedule.execute(txId)
+      return this.oneShotSchedule.execute(txId, { from: this.serviceProvider })
     }
 
     this.testExecutionWithValue = async (value, planId) => {
       const timestamp = await time.latest()
       const insideWindowTime = timestamp.add(insideWindow(planId))
       const plan = plans[planId]
-      const payWithRBTC = plan.token === constants.ZERO_ADDRESS
-      const getBalance = payWithRBTC ? web3.eth.getBalance : this.token.balanceOf
-
+      const getBalance = this.payWithRBTC(planId) ? web3.eth.getBalance : this.token.balanceOf
       const initialPayeeBalance = await getBalance(this.payee)
       const initialContractBalance = await getBalance(this.oneShotSchedule.address)
+      const txId = await this.testScheduleWithValue(planId, incData, value, insideWindowTime)
+      await this.executeWithTime(txId, insideWindowTime)
 
-      const txId = await this.testScheduleWithValue(planId, incData, value, insideWindowTime, payWithRBTC)
-      await time.increaseTo(insideWindowTime)
-      await time.advanceBlock()
-
-      await this.oneShotSchedule.execute(txId)
       // Transaction executed status
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
       // Transaction executed on contract
@@ -86,16 +83,61 @@ contract('OneShotSchedule - execution', (accounts) => {
 
     it('executes a listed a execution with value', () => this.testExecutionWithValue(toBN(1e15), 0))
     it('executes a listed a execution rBTC with value', () => this.testExecutionWithValue(toBN(1e15), 1))
-  })
 
+    it('executes a listed a execution after plan cancellation', async () => {
+      const timestamp = await time.latest()
+      const planId = 0
+      const insideWindowTime = timestamp.add(insideWindow(planId))
+      const txId = await this.testScheduleWithValue(planId, incData, 0, insideWindowTime)
+
+      // cancel plan
+      await this.oneShotSchedule.removePlan(planId, { from: this.serviceProvider })
+      const planFromContract = await this.oneShotSchedule.plans(planId)
+      assert.strictEqual(planFromContract.active, false, 'Plan not cancelled')
+
+      // Execute transaction and check status
+      await this.executeWithTime(txId, insideWindowTime)
+      assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
+    })
+
+    it('should execute and fail, then retry and success', async () => {
+      const timestamp = await time.latest()
+      const planId = 0
+      const insideWindowTime = timestamp.add(insideWindow(planId))
+      const txId = await this.testScheduleWithValue(planId, incData, 0, insideWindowTime)
+
+      // remove providers balance
+      const providerBalance = await web3.eth.getBalance(this.serviceProvider)
+      const gas = toBN(21000)
+      const gasPrice = toBN(await web3.eth.getGasPrice())
+      var gasTotal = gasPrice.mul(gas)
+      await web3.eth.sendTransaction({
+        from: this.serviceProvider,
+        to: this.anotherAccount,
+        gas,
+        value: toBN(providerBalance).sub(gasTotal).sub(toBN(1)),
+      }) //
+      // execute should fail
+      try {
+        await this.executeWithTime(txId, insideWindowTime)
+      } catch (e) {
+        assert.ok(e.message.indexOf("sender doesn't have enough funds to send tx.") > -1)
+      }
+      // return the balance
+      await web3.eth.sendTransaction({ from: this.anotherAccount, to: this.serviceProvider, gas, value: toBN(providerBalance) })
+      // retry
+      await this.oneShotSchedule.execute(txId, { from: this.anotherAccount })
+      // Transaction executed status
+      assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
+    })
+  })
   describe('failing', () => {
     beforeEach(() => {
       this.refundTest = async (planId) => {
         const timestamp = await time.latest()
         // scheduled for tomorrow
         const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
-        const payWithRBTC = plans[planId].token === constants.ZERO_ADDRESS
-        const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp, payWithRBTC)
+        const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
         const requestorBalance = await web3.eth.getBalance(this.requestor)
         // execute after window
         const receipt = await this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).add(outsideWindow(planId))))
