@@ -57,7 +57,12 @@ contract('OneShotSchedule - execution', (accounts) => {
       const initialPayeeBalance = await getBalance(this.payee)
       const initialContractBalance = await getBalance(this.oneShotSchedule.address)
       const txId = await this.testScheduleWithValue(planId, incData, value, insideWindowTime)
-      await this.executeWithTime(txId, insideWindowTime)
+      const receipt = await this.executeWithTime(txId, insideWindowTime)
+
+      expectEvent(receipt, 'Executed', {
+        id: txId,
+        success: true,
+      })
 
       // Transaction executed status
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')

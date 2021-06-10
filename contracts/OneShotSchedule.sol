@@ -39,8 +39,8 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   Plan[] public plans;
 
   mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
-  mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions
   mapping(bytes32 => Execution) private executions;
+  mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanRemoved(uint256 indexed index);
@@ -102,18 +102,6 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     _unpause();
   }
 
-  function requestPlanRefund(uint256 plan) external whenPaused {
-    require(remainingExecutions[msg.sender][plan] > 0, 'No balance to refund');
-    uint256 amountToRefund = totalPrice(plan, remainingExecutions[msg.sender][plan]);
-    remainingExecutions[msg.sender][plan] = 0;
-    if (amountToRefund == 0) return;
-    if (address(plans[plan].token) == address(0x0)) {
-      payable(msg.sender).transfer(amountToRefund);
-    } else {
-      require(plans[plan].token.transfer(msg.sender, amountToRefund), 'Refund failed');
-    }
-  }
-
   //////////////
   // PURCHASE //
   //////////////
@@ -153,6 +141,21 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
 
     doPurchase(from, plan, quantity);
     return true;
+  }
+
+  // If the service provider pauses the contract, it means that is no longer
+  // providing the service. In this case who have bought any plan can request
+  // a refund.
+  function requestPlanRefund(uint256 plan) external whenPaused {
+    require(remainingExecutions[msg.sender][plan] > 0, 'No balance to refund');
+    uint256 amountToRefund = totalPrice(plan, remainingExecutions[msg.sender][plan]);
+    remainingExecutions[msg.sender][plan] = 0;
+    if (amountToRefund == 0) return;
+    if (address(plans[plan].token) == address(0x0)) {
+      payable(msg.sender).transfer(amountToRefund);
+    } else {
+      require(plans[plan].token.transfer(msg.sender, amountToRefund), 'Refund failed');
+    }
   }
 
   ////////////////
