@@ -75,14 +75,10 @@ contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     emit PlanAdded(plans.length - 1, price, address(token), window);
   }
 
-  function _removePlan(uint256 plan) private onlyProvider {
+  function removePlan(uint256 plan) external onlyProvider {
     require(plans[plan].active, 'The plan is already inactive');
     plans[plan].active = false;
     emit PlanRemoved(plan);
-  }
-
-  function removePlan(uint256 plan) external onlyProvider {
-    _removePlan(plan);
   }
 
   function plansCount() external view returns (uint256) {
