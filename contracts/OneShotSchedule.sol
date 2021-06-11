@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
-import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/security/Pausable.sol';
 
-contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGuardUpgradeable {
+contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   enum ExecutionState { Nonexistent, Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
   // State transitions for scheduled executions:
   //   Nonexistent -> Scheduled (requestor scheduled execution, 'Nonexistent' state is never assigned)
@@ -42,8 +42,6 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   mapping(bytes32 => Execution) private executions;
   mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions
 
-  address private immutable self = address(this);
-
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanRemoved(uint256 indexed index);
 
@@ -57,8 +55,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     _;
   }
 
-  function initialize(address serviceProvider_, address payee_) external initializer {
-    __ReentrancyGuard_init();
+  constructor(address serviceProvider_, address payee_) {
     require(payee_ != address(0x0), 'Payee address cannot be 0x0');
     require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
     serviceProvider = serviceProvider_;
@@ -73,7 +70,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     uint256 price,
     uint256 window,
     IERC677 token
-  ) external onlyProvider {
+  ) external onlyProvider whenNotPaused {
     plans.push(Plan(price, window, token, true));
     emit PlanAdded(plans.length - 1, price, address(token), window);
   }
@@ -93,19 +90,27 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     payee = payee_;
   }
 
-  //////////////
-  // PURCHASE //
-  //////////////
-
   function totalPrice(uint256 plan, uint256 quantity) private view returns (uint256) {
     return quantity * plans[plan].pricePerExecution;
   }
+
+  function pause() external onlyProvider {
+    _pause();
+  }
+
+  function unpause() external onlyProvider {
+    _unpause();
+  }
+
+  //////////////
+  // PURCHASE //
+  //////////////
 
   function doPurchase(
     address requestor,
     uint256 plan,
     uint256 amount
-  ) private {
+  ) private whenNotPaused {
     require(plans[plan].active, 'Inactive plan');
     remainingExecutions[requestor][plan] += amount;
     emit ExecutionPurchased(requestor, plan, amount);
@@ -138,6 +143,21 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     return true;
   }
 
+  // If the service provider pauses the contract, it means that is no longer
+  // providing the service. In this case, users that have bought any plan can request
+  // a refund.
+  function requestPlanRefund(uint256 plan) external whenPaused {
+    require(remainingExecutions[msg.sender][plan] > 0, 'No balance to refund');
+    uint256 amountToRefund = totalPrice(plan, remainingExecutions[msg.sender][plan]);
+    remainingExecutions[msg.sender][plan] = 0;
+    if (amountToRefund == 0) return;
+    if (address(plans[plan].token) == address(0x0)) {
+      payable(msg.sender).transfer(amountToRefund);
+    } else {
+      require(plans[plan].token.transfer(msg.sender, amountToRefund), 'Refund failed');
+    }
+  }
+
   ////////////////
   // SCHEDULING //
   ////////////////
@@ -159,7 +179,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
       );
   }
 
-  function _schedule(Execution memory execution) private returns (bytes32 id) {
+  function _schedule(Execution memory execution) private whenNotPaused returns (bytes32 id) {
     require(msg.sender == execution.requestor, 'Not the requestor'); // just in case
     require(remainingExecutions[msg.sender][execution.plan] > 0, 'No balance available');
     // This is only to prevent errors, doesn't need to be exact
@@ -220,11 +240,10 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   }
 
   function cancelScheduling(bytes32 id) external {
+    require(executions[id].state == ExecutionState.Scheduled, 'Transaction not scheduled'); // Checking state directly to consider Scheduled and Overdue
+    require(msg.sender == executions[id].requestor, 'Not authorized');
+
     Execution storage execution = executions[id];
-
-    require(getState(id) == ExecutionState.Scheduled, 'Transaction not scheduled');
-    require(msg.sender == execution.requestor, 'Not authorized');
-
     execution.state = ExecutionState.Cancelled;
     remainingExecutions[execution.requestor][execution.plan] += 1;
     emit ExecutionCancelled(id);
@@ -244,7 +263,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
   // The nonReentrant prevents this contract to be call again when the low level call is executed
   // timestamp manipulation should be considered in the window by the service provider
   // slither-disable-next-line timestamp
-  function execute(bytes32 id) external nonReentrant {
+  function execute(bytes32 id) external nonReentrant whenNotPaused {
     Execution storage execution = executions[id];
 
     require(execution.state == ExecutionState.Scheduled, 'Already executed');
@@ -283,8 +302,7 @@ contract OneShotSchedule is IERC677TransferReceiver, Initializable, ReentrancyGu
     }
   }
 
-  function multicall(bytes[] calldata data) external returns (bytes[] memory results) {
-    require(address(this) != self); //This makes safe the use of delegatedcall, making it only viable on the proxy
+  function multicall(bytes[] calldata data) external whenNotPaused returns (bytes[] memory results) {
     results = new bytes[](data.length);
     for (uint256 i = 0; i < data.length; i++) {
       (bool success, bytes memory result) = address(this).delegatecall(data[i]);

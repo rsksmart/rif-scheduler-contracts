@@ -169,6 +169,16 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       assert.strictEqual(expectedRequestorBalance.toString(), finalRequestorBalance.toString(), 'Transaction value not refunded')
     })
 
+    it('should schedule, cancel execution and refund after execution window', async () => {
+      const scheduleTime = (await time.latest()).add(toBN(100))
+      const timestampOutsideWindow = scheduleTime.add(outsideWindow(0))
+      const txId = await this.testScheduleWithValue(0, toBN(1e15), scheduleTime)
+      await time.increaseTo(timestampOutsideWindow)
+      await time.advanceBlock()
+      const cancelTx = await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
+      expectEvent(cancelTx, 'ExecutionCancelled', { id: txId })
+    })
+
     it('should fail to cancel a cancelled execution', async () => {
       const txId = await this.scheduleOneValid(toBN(1e15))
       await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
@@ -180,14 +190,8 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.serviceProvider }), 'Not authorized')
     })
 
-    it('should fail to cancel transactions after execution window', async () => {
-      const scheduleTime = (await time.latest()).add(toBN(100))
-      const timestampOutsideWindow = scheduleTime.add(outsideWindow(0))
-      const txId = await this.testScheduleWithValue(0, toBN(1e15), scheduleTime)
-      await time.increaseTo(timestampOutsideWindow)
-      await time.advanceBlock()
-      return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor }), 'Transaction not scheduled')
-    })
+    it('should fail to list executions out of range', async () =>
+      expectRevert(this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(1000000)), 'Out of range'))
   })
 
   describe('Schedule multiple transactions', () => {
