@@ -3,12 +3,19 @@
 </p>
 <h3 align="middle">RIF Scheduler contracts</h3>
 <p align="middle">
+    <a href="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts">
+        <img src="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts.svg" alt="npm" />
+    </a>
     <a href="https://developers.rsk.co/rif/scheduler/contracts">
         <img src="https://img.shields.io/badge/-docs-brightgreen" alt="docs" />
     </a>
     <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml" alt="ci">
         <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml/badge.svg" alt="ci" />
     </a>
+    <a href="https://codecov.io/gh/rsksmart/rif-scheduler-contracts">
+        <img src="https://codecov.io/gh/rsksmart/rif-scheduler-contracts/branch/develop/graph/badge.svg?token=72T5TQ34HT"/>
+    </a>
+    <br />
     <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/scan.yml" alt="ci">
         <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/scan.yml/badge.svg" alt="ci" />
     </a>
@@ -17,9 +24,6 @@
     </a>
     <a href="https://lgtm.com/projects/g/rsksmart/rif-scheduler-contracts/context:javascript">
         <img src="https://img.shields.io/lgtm/grade/javascript/github/rsksmart/rif-scheduler-contracts">
-    </a>
-    <a href="https://codecov.io/gh/rsksmart/rif-scheduler-contracts">
-        <img src="https://codecov.io/gh/rsksmart/rif-scheduler-contracts/branch/develop/graph/badge.svg?token=72T5TQ34HT"/>
     </a>
 </p>
 
