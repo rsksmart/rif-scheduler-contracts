@@ -1,6 +1,6 @@
 {
   "name": "@rsksmart/rif-scheduler-contracts",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "RIF Scheduler contracts",
   "files": [
     "/contracts",
