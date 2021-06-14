@@ -6,17 +6,17 @@ const { plans, ExecutionState, setupContracts, getExecutionId, getMethodSig } = 
 
 const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 
-contract('OneShotSchedule - multicall', (accounts) => {
+contract('RIFScheduler - multicall', (accounts) => {
   beforeEach(async () => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
-    const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+    const { token, rifScheduler } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
-    this.oneShotSchedule = oneShotSchedule
+    this.rifScheduler = rifScheduler
 
     this.counter = await Counter.new()
 
-    await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
   })
 
   it('buy plan and schedule a new execution', async () => {
@@ -24,14 +24,14 @@ contract('OneShotSchedule - multicall', (accounts) => {
     const scheduleTime = (await time.latest()).add(toBN(100))
     const to = this.counter.address
     const gas = toBN(await this.counter.inc.estimateGas())
-    await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
+    await this.token.approve(this.rifScheduler.address, toBN(1000), { from: this.requestor })
 
-    const purchaseCall = this.oneShotSchedule.contract.methods.purchase(plan, 1).encodeABI()
-    const schedule = this.oneShotSchedule.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
-    const results = await this.oneShotSchedule.multicall([purchaseCall, schedule], { from: this.requestor })
+    const purchaseCall = this.rifScheduler.contract.methods.purchase(plan, 1).encodeABI()
+    const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
+    const results = await this.rifScheduler.multicall([purchaseCall, schedule], { from: this.requestor })
     const executionId = getExecutionId(results)
-    const actual = await this.oneShotSchedule.getExecutionById(executionId)
-    const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
+    const actual = await this.rifScheduler.getExecutionById(executionId)
+    const scheduled = await this.rifScheduler.remainingExecutions(this.requestor, plan)
 
     assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
     assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')

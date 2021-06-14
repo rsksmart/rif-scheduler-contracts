@@ -1,5 +1,5 @@
 const ERC677 = artifacts.require('ERC677')
-const OneShotSchedule = artifacts.require('OneShotSchedule')
+const RIFScheduler = artifacts.require('RIFScheduler')
 const Counter = artifacts.require('Counter')
 module.exports = async (deployer, network, accounts) => {
   const [contractAdmin, payee] = accounts
@@ -11,13 +11,13 @@ module.exports = async (deployer, network, accounts) => {
   }
 
   if (network !== 'test' && network !== 'soliditycoverage') {
-    await deployer.deploy(OneShotSchedule, contractAdmin, payee)
-    console.log('OneShotSchedule Contract implementation: ' + OneShotSchedule.address)
+    await deployer.deploy(RIFScheduler, contractAdmin, payee)
+    console.log('RIFScheduler Contract implementation: ' + RIFScheduler.address)
   }
 
   if (network === 'rskTestnet') {
-    await OneShotSchedule.deployed().then((oneShotSchedule) =>
-      oneShotSchedule.addPlan('10000000000000', '7200', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
+    await RIFScheduler.deployed().then((rifScheduler) =>
+      rifScheduler.addPlan('10000000000000', '7200', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
     )
   }
 
@@ -25,6 +25,17 @@ module.exports = async (deployer, network, accounts) => {
     const devAccount = 'YOUR_ACCOUNT'
     await web3.eth.sendTransaction({ from: accounts[0], to: devAccount, value: '1000000000000000000' })
     await deployer.deploy(ERC677, devAccount, web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-    await OneShotSchedule.deployed().then((oneShotSchedule) => oneShotSchedule.addPlan('1000000000000000000', '300', ERC677.address))
+    await RIFScheduler.deployed().then((rifScheduler) => rifScheduler.addPlan('1000000000000000000', '300', ERC677.address))
+  }
+
+  if (network === 'develop' || network === 'ganache') {
+    await deployer.deploy(Counter)
+
+    console.log('Summary')
+    console.log('=======')
+    console.log('')
+    console.log(`Schedule: ${RIFSchedule.address}`)
+    console.log(`Token: ${ERC677.address}`)
+    console.log(`Counter: ${Counter.address}`)
   }
 }
