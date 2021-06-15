@@ -8,6 +8,6 @@ fs.writeFileSync('./OneShotSchedule.json', JSON.stringify({
 
 fs.writeFileSync('./OneShotScheduleAddresses.json', JSON.stringify({
   address: {
-    31: '0x0372f6f8c7b2353b546f842da0c44749664d1203'
+    31: '0xff349c2df8ca32771153b5868b02bc812fb0172d'
   }
 }));
