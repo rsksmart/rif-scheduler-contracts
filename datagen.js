@@ -1,12 +1,12 @@
 const fs = require('fs');
-const OneShotSchedule = require('./build/contracts/OneShotSchedule');
+const RIFScheduler = require('./build/contracts/RIFScheduler');
 
-fs.writeFileSync('./OneShotSchedule.json', JSON.stringify({
-  abi: OneShotSchedule.abi,
-  bytecode: OneShotSchedule.bytecode
+fs.writeFileSync('./RIFScheduler.json', JSON.stringify({
+  abi: RIFScheduler.abi,
+  bytecode: RIFScheduler.bytecode
 }));
 
-fs.writeFileSync('./OneShotScheduleAddresses.json', JSON.stringify({
+fs.writeFileSync('./RIFSchedulerAddresses.json', JSON.stringify({
   address: {
     31: '0xff349c2df8ca32771153b5868b02bc812fb0172d'
   }
