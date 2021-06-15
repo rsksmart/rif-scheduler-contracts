@@ -79,21 +79,13 @@ contract('RIFScheduler - scheduling', (accounts) => {
       value,
     })
     const executionId1 = getExecutionId(scheduleReceipt1)
-    assert.strictEqual(
-      (await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(),
-      '1',
-      `Wrong balance - scheduled 1st`
-    )
+    assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(), '1', `Wrong balance - scheduled 1st`)
     await this.rifScheduler.removePlan(0, { from: this.serviceProvider })
     const scheduleReceipt2 = await this.rifScheduler.schedule(plan, this.counter.address, incData, this.gas, timestamp.add(toBN(100)), {
       from: this.requestor,
       value,
     })
-    assert.strictEqual(
-      (await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(),
-      '0',
-      `Wrong balance - scheduled 2nd`
-    )
+    assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(), '0', `Wrong balance - scheduled 2nd`)
     const executionId2 = getExecutionId(scheduleReceipt2)
     const actual1 = await this.rifScheduler.getExecutionById(executionId1)
     const actual2 = await this.rifScheduler.getExecutionById(executionId2)
