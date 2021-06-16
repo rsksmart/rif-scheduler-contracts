@@ -12,8 +12,8 @@
     <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml" alt="ci">
         <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml/badge.svg" alt="ci" />
     </a>
-    <a href="https://codecov.io/gh/rsksmart/rif-scheduler-contracts">
-        <img src="https://codecov.io/gh/rsksmart/rif-scheduler-contracts/branch/develop/graph/badge.svg?token=72T5TQ34HT"/>
+    <a href='https://coveralls.io/github/rsksmart/rif-scheduler-contracts?branch=main'>
+        <img src='https://coveralls.io/repos/github/rsksmart/rif-scheduler-contracts/badge.svg?branch=develop' alt='Coverage Status' />
     </a>
     <br />
     <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/scan.yml" alt="ci">
