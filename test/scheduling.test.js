@@ -15,27 +15,27 @@ const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
 
 const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 
-contract('OneShotSchedule - scheduling', (accounts) => {
+contract('RIFScheduler - scheduling', (accounts) => {
   beforeEach(async () => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
-    const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+    const { token, rifScheduler } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
-    this.oneShotSchedule = oneShotSchedule
-    await this.token.approve(this.oneShotSchedule.address, toBN(1000), { from: this.requestor })
+    this.rifScheduler = rifScheduler
+    await this.token.approve(this.rifScheduler.address, toBN(1000), { from: this.requestor })
 
     this.counter = await Counter.new()
     this.gas = toBN(await this.counter.inc.estimateGas())
 
-    await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
 
     this.testScheduleWithValue = async (plan, value, timestamp) => {
       const to = this.counter.address
-      await this.oneShotSchedule.purchase(plan, 1, { from: this.requestor })
-      const scheduleReceipt = await this.oneShotSchedule.schedule(plan, to, incData, this.gas, timestamp, { from: this.requestor, value })
+      await this.rifScheduler.purchase(plan, 1, { from: this.requestor })
+      const scheduleReceipt = await this.rifScheduler.schedule(plan, to, incData, this.gas, timestamp, { from: this.requestor, value })
       const executionId = getExecutionId(scheduleReceipt)
-      const actual = await this.oneShotSchedule.getExecutionById(executionId)
-      const scheduled = await this.oneShotSchedule.remainingExecutions(this.requestor, plan)
+      const actual = await this.rifScheduler.getExecutionById(executionId)
+      const scheduled = await this.rifScheduler.remainingExecutions(this.requestor, plan)
 
       assert.strictEqual(actual[0], this.requestor, 'Not scheduled for this user')
       assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')
@@ -52,7 +52,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
   })
 
   it('should return Nonexistent state for a not scheduled execution', async () => {
-    const txState = await this.oneShotSchedule.getState('0x68a2d4f6db1ab0ae441c0918ce5bbc0b8e30243fed88cd429e4b97f126c3f868', {
+    const txState = await this.rifScheduler.getState('0x68a2d4f6db1ab0ae441c0918ce5bbc0b8e30243fed88cd429e4b97f126c3f868', {
       from: this.requestor,
     })
     assert.strictEqual(txState.toString(), ExecutionState.Nonexistent, 'Wrong status')
@@ -67,36 +67,28 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     const timestamp = (await time.latest()).add(toBN(100))
     const plan = 0
     const value = toBN(0)
-    await this.oneShotSchedule.purchase(plan, 2, { from: this.requestor })
-    assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(), '2', `Wrong initial balance`)
+    await this.rifScheduler.purchase(plan, 2, { from: this.requestor })
+    assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(), '2', `Wrong initial balance`)
     assert.strictEqual(
-      (await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),
+      (await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(),
       '2',
       `Wrong initial balance after plan cancellation`
     )
-    const scheduleReceipt1 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp, {
+    const scheduleReceipt1 = await this.rifScheduler.schedule(plan, this.counter.address, incData, this.gas, timestamp, {
       from: this.requestor,
       value,
     })
     const executionId1 = getExecutionId(scheduleReceipt1)
-    assert.strictEqual(
-      (await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),
-      '1',
-      `Wrong balance - scheduled 1st`
-    )
-    await this.oneShotSchedule.removePlan(0, { from: this.serviceProvider })
-    const scheduleReceipt2 = await this.oneShotSchedule.schedule(plan, this.counter.address, incData, this.gas, timestamp.add(toBN(100)), {
+    assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(), '1', `Wrong balance - scheduled 1st`)
+    await this.rifScheduler.removePlan(0, { from: this.serviceProvider })
+    const scheduleReceipt2 = await this.rifScheduler.schedule(plan, this.counter.address, incData, this.gas, timestamp.add(toBN(100)), {
       from: this.requestor,
       value,
     })
-    assert.strictEqual(
-      (await this.oneShotSchedule.remainingExecutions(this.requestor, plan)).toString(),
-      '0',
-      `Wrong balance - scheduled 2nd`
-    )
+    assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(), '0', `Wrong balance - scheduled 2nd`)
     const executionId2 = getExecutionId(scheduleReceipt2)
-    const actual1 = await this.oneShotSchedule.getExecutionById(executionId1)
-    const actual2 = await this.oneShotSchedule.getExecutionById(executionId2)
+    const actual1 = await this.rifScheduler.getExecutionById(executionId1)
+    const actual2 = await this.rifScheduler.getExecutionById(executionId2)
     assert.strictEqual(actual1[7].toString(), ExecutionState.Scheduled)
     assert.strictEqual(actual2[7].toString(), ExecutionState.Scheduled)
   })
@@ -117,7 +109,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
     await this.testScheduleWithValue(0, toBN(0), scheduleTime)
     // try to schedule another
     return expectRevert(
-      this.oneShotSchedule.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), scheduleTime, {
+      this.rifScheduler.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), scheduleTime, {
         from: this.requestor,
         value: toBN(0),
       }),
@@ -145,20 +137,20 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const valueForTx = toBN(1e15)
       const txId = await this.scheduleOneValid(valueForTx)
       const requestorBalanceAfterSchedule = toBN(await web3.eth.getBalance(this.requestor))
-      const cancelTx = await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
+      const cancelTx = await this.rifScheduler.cancelScheduling(txId, { from: this.requestor })
 
       expectEvent(cancelTx, 'ExecutionCancelled', { id: txId })
 
       //State should be Cancelled
-      const scheduling = await this.oneShotSchedule.getExecutionById(txId)
+      const scheduling = await this.rifScheduler.getExecutionById(txId)
       assert.strictEqual(scheduling[7].toString(), ExecutionState.Cancelled, 'Not cancelled')
 
       //Scheduling should be refunded
-      assert.strictEqual((await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(0))).toString(), '1', 'Schedule not refunded')
+      assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, toBN(0))).toString(), '1', 'Schedule not refunded')
 
       //Value should be returned from contract to requestor
       //Final contract balance should be 0
-      const contractBalanceFinal = await web3.eth.getBalance(this.oneShotSchedule.address)
+      const contractBalanceFinal = await web3.eth.getBalance(this.rifScheduler.address)
       assert.strictEqual(contractBalanceFinal.toString(), '0', 'Contract still has value')
 
       //Final requestor balance should be the same as before scheduling minus used gas
@@ -175,31 +167,31 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       const txId = await this.testScheduleWithValue(0, toBN(1e15), scheduleTime)
       await time.increaseTo(timestampOutsideWindow)
       await time.advanceBlock()
-      const cancelTx = await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
+      const cancelTx = await this.rifScheduler.cancelScheduling(txId, { from: this.requestor })
       expectEvent(cancelTx, 'ExecutionCancelled', { id: txId })
     })
 
     it('should fail to cancel a cancelled execution', async () => {
       const txId = await this.scheduleOneValid(toBN(1e15))
-      await this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor })
-      return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.requestor }), 'Transaction not scheduled')
+      await this.rifScheduler.cancelScheduling(txId, { from: this.requestor })
+      return expectRevert(this.rifScheduler.cancelScheduling(txId, { from: this.requestor }), 'Transaction not scheduled')
     })
 
     it('should fail to cancel transactions if not the requestor', async () => {
       const txId = await this.scheduleOneValid(toBN(1e15))
-      return expectRevert(this.oneShotSchedule.cancelScheduling(txId, { from: this.serviceProvider }), 'Not authorized')
+      return expectRevert(this.rifScheduler.cancelScheduling(txId, { from: this.serviceProvider }), 'Not authorized')
     })
 
     it('should fail to list executions out of range', async () =>
-      expectRevert(this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(1000000)), 'Out of range'))
+      expectRevert(this.rifScheduler.getExecutionsByRequestor(this.requestor, toBN(0), toBN(1000000)), 'Out of range'))
   })
 
   describe('Schedule multiple transactions', () => {
     beforeEach(() => {
       this.purchaseMany = async (plan, q) => {
         const price = plans[plan].price
-        await this.token.approve(this.oneShotSchedule.address, price.mul(toBN(q)), { from: this.requestor })
-        await this.oneShotSchedule.purchase(plan, q, { from: this.requestor })
+        await this.token.approve(this.rifScheduler.address, price.mul(toBN(q)), { from: this.requestor })
+        await this.rifScheduler.purchase(plan, q, { from: this.requestor })
       }
 
       this.encodeOneExecution = (execution) => {
@@ -236,13 +228,13 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
-      const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
-      const executionsLeft = await this.oneShotSchedule.remainingExecutions(this.requestor, planId)
+      const scheduleReceipt = await this.rifScheduler.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
+      const executionsLeft = await this.rifScheduler.remainingExecutions(this.requestor, planId)
 
       const ids = getMultipleExecutionId(scheduleReceipt)
 
       for (let i = 0; i < quantity; i++) {
-        const scheduledExecution = await this.oneShotSchedule.getExecutionById(ids[i])
+        const scheduledExecution = await this.rifScheduler.getExecutionById(ids[i])
         const requestedExecution = executions[i]
         assert.strictEqual(scheduledExecution[0], this.requestor, 'Not scheduled for this user')
         assert.strictEqual(scheduledExecution.plan.toString(), requestedExecution.plan.toString(), 'Wrong plan')
@@ -265,9 +257,9 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
-      const scheduleReceipt = await this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
-      const executionsByRequestor = await this.oneShotSchedule.executionsByRequestorCount(this.requestor)
-      const executionList = await this.oneShotSchedule.getExecutionsByRequestor(this.requestor, toBN(0), toBN(quantity))
+      const scheduleReceipt = await this.rifScheduler.batchSchedule(encodedExecutions, { from: this.requestor, value: totalValue })
+      const executionsByRequestor = await this.rifScheduler.executionsByRequestorCount(this.requestor)
+      const executionList = await this.rifScheduler.getExecutionsByRequestor(this.requestor, toBN(0), toBN(quantity))
 
       for (let i = 0; i < quantity; i++) {
         const scheduledExecution = executionList[i]
@@ -292,7 +284,7 @@ contract('OneShotSchedule - scheduling', (accounts) => {
       await this.purchaseMany(planId, quantity)
       const executions = await this.getSampleExecutions(planId, quantity)
       const encodedExecutions = this.encodeExecutions(executions)
-      const scheduleReceipt = this.oneShotSchedule.batchSchedule(encodedExecutions, { from: this.requestor, value: wrongValue })
+      const scheduleReceipt = this.rifScheduler.batchSchedule(encodedExecutions, { from: this.requestor, value: wrongValue })
       return expectRevert(scheduleReceipt, "Executions total value doesn't match")
     })
   })

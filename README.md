@@ -88,11 +88,13 @@ npm run deploy:rsk-mainnet # deploy to RSK Mainnet
 **RSK Testnet:**
 
 - Public contracts:
-    - One Shot Schedule singleton: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
-    - Proxy Factory: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
-- RIF Instance:
-    - Proxy: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
-    - Proxy Admin: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
+    - RIF Scheduler singleton: [`0xff349c2df8ca32771153b5868b02bc812fb0172d`](https://explorer.testnet.rsk.co/address/0xff349c2df8ca32771153b5868b02bc812fb0172d)
+
+**RSK Mainnet:**
+
+- Public contracts:
+ - RIF Scheduler singleton: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
+
 
 ## Acknowledgments
 

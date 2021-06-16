@@ -48,7 +48,7 @@ module.exports = {
       provider: () => new HDWalletProvider({
         mnemonic,
         providerOrUrl: `https://public-node.rsk.co`,
-        derivationPath: "m/44'/137'/0'/0/"
+        derivationPath: "m/44'/37310'/0'/0/"
       }),
       network_id: 30,
       gasPrice: 60000000,
@@ -67,7 +67,7 @@ module.exports = {
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
       settings: {          // See the solidity docs for advice about optimization and evmVersion
        optimizer: {
-         enabled: false,
+         enabled: true,
          runs: 200
        },
        evmVersion: "byzantium"

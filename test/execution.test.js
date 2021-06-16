@@ -10,21 +10,21 @@ const { plans, ExecutionState, setupContracts, insideWindow, outsideWindow, getE
 const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 const failData = getMethodSig({ inputs: [], name: 'fail', type: 'function' })
 
-contract('OneShotSchedule - execution', (accounts) => {
+contract('RIFScheduler - execution', (accounts) => {
   beforeEach(async () => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider, this.anotherAccount] = accounts
 
-    const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+    const { token, rifScheduler } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
-    this.oneShotSchedule = oneShotSchedule
+    this.rifScheduler = rifScheduler
 
     this.counter = await Counter.new()
 
-    this.getState = (executionId) => this.oneShotSchedule.getState(executionId).then((state) => state.toString())
+    this.getState = (executionId) => this.rifScheduler.getState(executionId).then((state) => state.toString())
 
-    await this.oneShotSchedule.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
     plans[0].token = this.token.address
-    await this.oneShotSchedule.addPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider })
     plans[1].token = constants.ZERO_ADDRESS
 
     this.payWithRBTC = (planId) => plans[planId].token === constants.ZERO_ADDRESS
@@ -34,19 +34,19 @@ contract('OneShotSchedule - execution', (accounts) => {
       const from = this.requestor
       const gas = toBN(await this.counter.inc.estimateGas())
       if (this.payWithRBTC(planId)) {
-        await this.oneShotSchedule.purchase(planId, toBN(1), { from, value: plans[planId].price })
+        await this.rifScheduler.purchase(planId, toBN(1), { from, value: plans[planId].price })
       } else {
-        await this.token.approve(this.oneShotSchedule.address, plans[planId].price, { from })
-        await this.oneShotSchedule.purchase(planId, toBN(1), { from })
+        await this.token.approve(this.rifScheduler.address, plans[planId].price, { from })
+        await this.rifScheduler.purchase(planId, toBN(1), { from })
       }
-      const scheduleReceipt = await this.oneShotSchedule.schedule(planId, to, data, gas, timestamp, { from, value })
+      const scheduleReceipt = await this.rifScheduler.schedule(planId, to, data, gas, timestamp, { from, value })
       return getExecutionId(scheduleReceipt)
     }
 
     this.executeWithTime = async (txId, executionTimestamp) => {
       await time.increaseTo(executionTimestamp)
       await time.advanceBlock()
-      return this.oneShotSchedule.execute(txId, { from: this.serviceProvider })
+      return this.rifScheduler.execute(txId, { from: this.serviceProvider })
     }
 
     this.testExecutionWithValue = async (value, planId) => {
@@ -55,7 +55,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const plan = plans[planId]
       const getBalance = this.payWithRBTC(planId) ? web3.eth.getBalance : this.token.balanceOf
       const initialPayeeBalance = await getBalance(this.payee)
-      const initialContractBalance = await getBalance(this.oneShotSchedule.address)
+      const initialContractBalance = await getBalance(this.rifScheduler.address)
       const txId = await this.testScheduleWithValue(planId, incData, value, insideWindowTime)
       const receipt = await this.executeWithTime(txId, insideWindowTime)
 
@@ -74,7 +74,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const expectedPayeeBalance = toBN(initialPayeeBalance).add(plan.price)
       assert.strictEqual(await getBalance(this.payee).then((r) => r.toString()), expectedPayeeBalance.toString(), 'wrong provider balance')
       assert.strictEqual(
-        await getBalance(this.oneShotSchedule.address).then((r) => r.toString()),
+        await getBalance(this.rifScheduler.address).then((r) => r.toString()),
         initialContractBalance.toString(),
         'wrong contract balance'
       )
@@ -96,8 +96,8 @@ contract('OneShotSchedule - execution', (accounts) => {
       const txId = await this.testScheduleWithValue(planId, incData, 0, insideWindowTime)
 
       // cancel plan
-      await this.oneShotSchedule.removePlan(planId, { from: this.serviceProvider })
-      const planFromContract = await this.oneShotSchedule.plans(planId)
+      await this.rifScheduler.removePlan(planId, { from: this.serviceProvider })
+      const planFromContract = await this.rifScheduler.plans(planId)
       assert.strictEqual(planFromContract.active, false, 'Plan not cancelled')
 
       // Execute transaction and check status
@@ -131,7 +131,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       // return the balance
       await web3.eth.sendTransaction({ from: this.anotherAccount, to: this.serviceProvider, gas, value: toBN(providerBalance) })
       // retry
-      await this.oneShotSchedule.execute(txId, { from: this.anotherAccount })
+      await this.rifScheduler.execute(txId, { from: this.anotherAccount })
       // Transaction executed status
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
     })
@@ -150,7 +150,7 @@ contract('OneShotSchedule - execution', (accounts) => {
         expectEvent.notEmitted(receipt, 'Executed')
         assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
         assert.strictEqual(
-          (await this.oneShotSchedule.remainingExecutions(this.requestor, toBN(planId))).toString(),
+          (await this.rifScheduler.remainingExecutions(this.requestor, toBN(planId))).toString(),
           '1',
           'Schedule not refunded'
         )
@@ -159,7 +159,7 @@ contract('OneShotSchedule - execution', (accounts) => {
     })
     it('cannot execute twice', async () => {
       const txId = await this.testExecutionWithValue(toBN(0), 0)
-      return expectRevert(this.oneShotSchedule.execute(txId), 'Already executed')
+      return expectRevert(this.rifScheduler.execute(txId), 'Already executed')
     })
 
     it('cannot execute before timestamp - window', async () => {
@@ -193,7 +193,7 @@ contract('OneShotSchedule - execution', (accounts) => {
       const timestamp = await time.latest()
       // scheduled for tomorrow
       const txId = await this.testScheduleWithValue(0, failData, toBN(0), timestamp.add(toBN(10)))
-      const tx = await this.oneShotSchedule.execute(txId)
+      const tx = await this.rifScheduler.execute(txId)
       const log = tx.logs.find((l) => l.event === 'Executed')
       assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
       expectEvent(tx, 'Executed', {
@@ -209,11 +209,11 @@ contract('OneShotSchedule - execution', (accounts) => {
       const timestamp = await time.latest()
       const from = this.requestor
       const timestampInsideWindow = timestamp.add(insideWindow(0))
-      await this.token.approve(this.oneShotSchedule.address, plans[0].price, { from })
-      await this.oneShotSchedule.purchase(toBN(0), toBN(1), { from })
-      const scheduleReceipt = await this.oneShotSchedule.schedule(0, to, failData, gas, timestampInsideWindow, { from })
+      await this.token.approve(this.rifScheduler.address, plans[0].price, { from })
+      await this.rifScheduler.purchase(toBN(0), toBN(1), { from })
+      const scheduleReceipt = await this.rifScheduler.schedule(0, to, failData, gas, timestampInsideWindow, { from })
       const txId = getExecutionId(scheduleReceipt)
-      const receipt = await this.oneShotSchedule.execute(txId)
+      const receipt = await this.rifScheduler.execute(txId)
       expectEvent(receipt, 'Executed', {
         id: txId,
         success: false,

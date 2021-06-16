@@ -3,8 +3,8 @@
   "version": "0.0.1-beta.2",
   "description": "RIF Scheduler contracts",
   "files": [
-    "/contracts/OneShotSchedule.sol",
-    "OneShotSchedule*.json"
+    "/contracts/RIFScheduler.sol",
+    "RIFScheduler*.json"
   ],
   "scripts": {
     "compile": "npx truffle compile --all",

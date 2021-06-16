@@ -1,4 +1,4 @@
-const OneShotSchedule = artifacts.require('OneShotSchedule')
+const RIFScheduler = artifacts.require('RIFScheduler')
 const ERC677 = artifacts.require('ERC677')
 const { deployProxy } = require('@openzeppelin/truffle-upgrades')
 
@@ -22,12 +22,12 @@ exports.ExecutionState = {
 exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor) => {
   const token = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
   const token2 = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RDOC', 'DOC')
-  const oneShotSchedule = await OneShotSchedule.new(serviceProvider, payee)
+  const rifScheduler = await RIFScheduler.new(serviceProvider, payee)
 
   await token.transfer(requestor, 100000, { from: contractAdmin })
   await token2.transfer(requestor, 100000, { from: contractAdmin })
 
-  return { token, token2, oneShotSchedule }
+  return { token, token2, rifScheduler }
 }
 
 exports.insideWindow = (plan) => plans[plan].window.sub(toBN(1000))

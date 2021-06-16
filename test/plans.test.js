@@ -4,37 +4,37 @@ const { toBN } = web3.utils
 
 const { plans, setupContracts } = require('./common.js')
 
-contract('OneShotSchedule - plans', (accounts) => {
+contract('RIFScheduler - plans', (accounts) => {
   beforeEach(async () => {
     ;[this.contractAdmin, this.payee, this.requestor, this.serviceProvider] = accounts
 
-    const { token, oneShotSchedule } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+    const { token, rifScheduler } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
     this.token = token
-    this.oneShotSchedule = oneShotSchedule
+    this.rifScheduler = rifScheduler
 
     this.testAddPlan = async (price, window, token, account) => {
-      const beforeCount = await this.oneShotSchedule.plansCount()
-      const receipt = await this.oneShotSchedule.addPlan(price, window, token, { from: account })
+      const beforeCount = await this.rifScheduler.plansCount()
+      const receipt = await this.rifScheduler.addPlan(price, window, token, { from: account })
       expectEvent(receipt, 'PlanAdded', {
         price: price,
         window: window,
         token: token,
       })
-      const afterCount = await this.oneShotSchedule.plansCount()
+      const afterCount = await this.rifScheduler.plansCount()
       assert.strictEqual(beforeCount.add(toBN(1)).toString(), afterCount.toString(), `Count doesn't match`)
     }
 
     this.testRemovePlan = async (account) => {
       await this.testAddPlan(plans[0].price, plans[0].window, this.token.address, account)
-      const planActive = await this.oneShotSchedule.plans(0)
+      const planActive = await this.rifScheduler.plans(0)
       assert.strictEqual(planActive.active, true, `The plan is not active`)
-      await this.oneShotSchedule.removePlan(0, { from: account })
-      const planInactive = await this.oneShotSchedule.plans(0)
+      await this.rifScheduler.removePlan(0, { from: account })
+      const planInactive = await this.rifScheduler.plans(0)
       assert.strictEqual(planInactive.active, false, `Didn't cancel the plan`)
     }
   })
 
-  it('initially has no plans', () => this.oneShotSchedule.plansCount().then((count) => assert.strictEqual(count.toString(), '0')))
+  it('initially has no plans', () => this.rifScheduler.plansCount().then((count) => assert.strictEqual(count.toString(), '0')))
   it('should add a plan', () => this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.serviceProvider))
   it('should add two plans', async () => {
     //payed with ERC-20 or 677
@@ -52,6 +52,6 @@ contract('OneShotSchedule - plans', (accounts) => {
 
   it('should reject to cancel if the plan is not active', async () => {
     await this.testRemovePlan(this.serviceProvider)
-    return expectRevert(this.oneShotSchedule.removePlan(0, { from: this.serviceProvider }), 'The plan is already inactive')
+    return expectRevert(this.rifScheduler.removePlan(0, { from: this.serviceProvider }), 'The plan is already inactive')
   })
 })

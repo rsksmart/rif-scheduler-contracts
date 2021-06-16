@@ -5,7 +5,7 @@ import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 
-contract OneShotSchedule is IERC677TransferReceiver, ReentrancyGuard, Pausable {
+contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   enum ExecutionState { Nonexistent, Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
   // State transitions for scheduled executions:
   //   Nonexistent -> Scheduled (requestor scheduled execution, 'Nonexistent' state is never assigned)
