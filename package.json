@@ -1,10 +1,11 @@
 {
   "name": "@rsksmart/rif-scheduler-contracts",
-  "version": "0.0.1-beta.2",
+  "version": "0.0.1-beta.3",
   "description": "RIF Scheduler contracts",
   "files": [
     "/contracts/RIFScheduler.sol",
-    "RIFScheduler*.json"
+    "RIFScheduler*.json",
+    "types"
   ],
   "scripts": {
     "compile": "npx truffle compile --all",
@@ -14,7 +15,8 @@
     "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "deploy:ganache": "npx truffle migrate --network ganache",
     "deploy:rsk-testnet": "npx truffle migrate --network rskTestnet",
-    "prepublish": "npm run compile && node datagen.js"
+    "types": "npx typechain \"build/contracts/RIFScheduler.json\" --target ethers-v5 && npx typechain \"build/contracts/RIFScheduler.json\" --target web3-v1",
+    "prepublish": "npm run compile && npm run types && node datagen.js"
   },
   "repository": {
     "type": "git",
@@ -35,11 +37,14 @@
     "@openzeppelin/test-helpers": "^0.5.11",
     "@openzeppelin/truffle-upgrades": "^1.6.1",
     "@truffle/hdwallet-provider": "^1.2.6",
+    "@typechain/ethers-v5": "^7.0.1",
+    "@typechain/web3-v1": "^3.0.0",
     "ganache-time-traveler": "^1.0.15",
     "prettier": "^2.2.1",
     "prettier-plugin-solidity": "^1.0.0-beta.10",
     "solidity-coverage": "^0.7.16",
     "truffle": "^5.3.8",
-    "truffle-flattener": "^1.5.0"
+    "truffle-flattener": "^1.5.0",
+    "typechain": "^5.0.0"
   }
 }
