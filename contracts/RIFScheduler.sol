@@ -8,7 +8,8 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   enum ExecutionState { Nonexistent, Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
   // State transitions for scheduled executions:
-  //   Nonexistent -> Scheduled (requestor scheduled execution, 'Nonexistent' state is never assigned)
+  //   Initial state: Nonexistent
+  //   Nonexistent -> Scheduled (requestor scheduled execution)
   //   Scheduled -> Cancelled (requestor cancelled execution)
   //   Scheduled -> ExecutionSuccessful (call was executed in the given time and did not fail)
   //   Scheduled -> ExecutionFailed (call was executed in the given time but failed)
