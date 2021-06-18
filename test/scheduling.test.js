@@ -109,7 +109,7 @@ contract('RIFScheduler - scheduling', (accounts) => {
     await this.testScheduleWithValue(0, toBN(0), scheduleTime)
     // try to schedule another
     return expectRevert(
-      this.rifScheduler.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), scheduleTime, {
+      this.rifScheduler.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), scheduleTime.add(toBN(1)), {
         from: this.requestor,
         value: toBN(0),
       }),

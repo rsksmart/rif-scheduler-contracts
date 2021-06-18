@@ -195,11 +195,11 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, value, ExecutionState.Scheduled);
     id = getExecutionId(execution);
 
+    require(getState(id) == ExecutionState.Nonexistent, 'Already scheduled');
     require(remainingExecutions[msg.sender][execution.plan] > 0, 'No balance available');
     // see notice bellow, about disabled cehcks
     // slither-disable-next-line timestamp
     require(block.timestamp <= execution.timestamp, 'Cannot schedule it in the past');
-    require(executions[id].timestamp == 0, 'Already scheduled'); // no execution can be scheduled with timestamp 0
 
     remainingExecutions[msg.sender][execution.plan] -= 1;
     executions[id] = execution;
