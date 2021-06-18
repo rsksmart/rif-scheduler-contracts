@@ -102,6 +102,20 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   //////////////
   // PURCHASE //
   //////////////
+  
+  /*
+   * Plans are paid via plan.token
+   * If plan.token is 0, the it is paid via RBTC
+   *   Use purchase method and set the total price in the transaction value
+   * Otherwhise, if it supports ERC-677 you can use
+   *   transferAndCall(
+   *     to: this address,
+   *     value: total price,
+   *     data: (uint256 plan, uint256 quantity) abi encoded)
+   * If it supports ERC-20
+   *   First, approve this contract with approve(spender: this address, amount: total price)
+   *   Then use pruchase method and set tx value to 0
+   **/
 
   function totalPrice(uint256 plan, uint256 quantity) private view returns (uint256) {
     return quantity * plans[plan].pricePerExecution;
