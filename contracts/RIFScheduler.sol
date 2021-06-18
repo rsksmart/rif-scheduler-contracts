@@ -91,10 +91,6 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     payee = payee_;
   }
 
-  function totalPrice(uint256 plan, uint256 quantity) private view returns (uint256) {
-    return quantity * plans[plan].pricePerExecution;
-  }
-
   function pause() external onlyProvider {
     _pause();
   }
@@ -106,6 +102,10 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   //////////////
   // PURCHASE //
   //////////////
+
+  function totalPrice(uint256 plan, uint256 quantity) private view returns (uint256) {
+    return quantity * plans[plan].pricePerExecution;
+  }
 
   function doPurchase(
     address requestor,
