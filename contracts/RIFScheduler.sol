@@ -41,7 +41,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
 
   mapping(address => mapping(uint256 => uint256)) public remainingExecutions;
   mapping(bytes32 => Execution) private executions;
-  mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions
+  mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions, allows requestors to query all their executions wihtout any 2nd layer
 
   event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
   event PlanRemoved(uint256 indexed index);
@@ -102,7 +102,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   //////////////
   // PURCHASE //
   //////////////
-  
+
   /*
    * Plans are paid via plan.token
    * If plan.token is 0, the it is paid via RBTC
@@ -177,33 +177,30 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   // SCHEDULING //
   ////////////////
 
-  // slither-disable-next-line timestamp
-  function getState(bytes32 id) public view returns (ExecutionState) {
-    Execution memory execution = executions[id];
-    if (execution.state == ExecutionState.Scheduled && ((execution.timestamp + plans[execution.plan].window) < block.timestamp)) {
-      return ExecutionState.Overdue;
-    } else {
-      return execution.state;
-    }
-  }
-
-  function hash(Execution memory execution) public pure returns (bytes32) {
+  function getExecutionId(Execution memory execution) public pure returns (bytes32) {
     return
       keccak256(
         abi.encode(execution.requestor, execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value)
       );
   }
 
-  function _schedule(Execution memory execution) private whenNotPaused returns (bytes32 id) {
-    require(msg.sender == execution.requestor, 'Not the requestor'); // just in case
+  function _schedule(
+    uint256 plan,
+    address to,
+    bytes memory data,
+    uint256 gas,
+    uint256 timestamp,
+    uint256 value
+  ) private whenNotPaused returns (bytes32 id) {
+    Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, value, ExecutionState.Scheduled);
+    id = getExecutionId(execution);
+
     require(remainingExecutions[msg.sender][execution.plan] > 0, 'No balance available');
-    // This is only to prevent errors, doesn't need to be exact
-    // timestamp manipulation should be considered in the window by the service provider
+    // see notice bellow, about disabled cehcks
     // slither-disable-next-line timestamp
     require(block.timestamp <= execution.timestamp, 'Cannot schedule it in the past');
-    id = hash(execution);
-    // checking existence, no execution can be scheduled with timestamp 0
-    require(executions[id].timestamp == 0, 'Already scheduled');
+    require(executions[id].timestamp == 0, 'Already scheduled'); // no execution can be scheduled with timestamp 0
+
     remainingExecutions[msg.sender][execution.plan] -= 1;
     executions[id] = execution;
     executionsByRequestor[msg.sender].push(id);
@@ -217,8 +214,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 gas,
     uint256 timestamp
   ) external payable returns (bytes32 id) {
-    Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, msg.value, ExecutionState.Scheduled);
-    return (_schedule(execution));
+    return (_schedule(plan, to, data, gas, timestamp, msg.value));
   }
 
   function batchSchedule(bytes[] calldata data) external payable returns (bytes32[] memory ids) {
@@ -228,9 +224,23 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
       (uint256 plan, address to, bytes memory txData, uint256 gas, uint256 timestamp, uint256 value) =
         abi.decode(data[i], (uint256, address, bytes, uint256, uint256, uint256));
       totalValue += value;
-      ids[i] = _schedule(Execution(msg.sender, plan, to, txData, gas, timestamp, value, ExecutionState.Scheduled));
+      ids[i] = _schedule(plan, to, txData, gas, timestamp, value);
     }
     require(totalValue == msg.value, "Executions total value doesn't match");
+  }
+
+  //////////////
+  // QUERYING //
+  //////////////
+
+  // slither-disable-next-line timestamp
+  function getState(bytes32 id) public view returns (ExecutionState) {
+    Execution memory execution = executions[id];
+    if (execution.state == ExecutionState.Scheduled && ((execution.timestamp + plans[execution.plan].window) < block.timestamp)) {
+      return ExecutionState.Overdue;
+    } else {
+      return execution.state;
+    }
   }
 
   function getExecutionById(bytes32 id) public view returns (Execution memory execution) {
@@ -254,6 +264,10 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     }
   }
 
+  ////////////////
+  // CANCELLING //
+  ////////////////
+
   function cancelScheduling(bytes32 id) external {
     require(executions[id].state == ExecutionState.Scheduled, 'Transaction not scheduled'); // Checking state directly to consider Scheduled and Overdue
     require(msg.sender == executions[id].requestor, 'Not authorized');
@@ -268,6 +282,15 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   ///////////////
   // EXECUTION //
   ///////////////
+
+  // Notice about omitted checks:
+  // reentrancy-*: prevented by nonReentrant modifier. The contract makes an external call to
+  //   execute the scheduled transaction on the specified contract. It needs to get the execution
+  //   result before emitting the event and changing the matatransaction state.
+  // low-level-calls: the contract will execute call wether the contract has code or not. It is
+  //   responsability of the requestor to choose the correct contract address.
+  // timestamp: timestamp manipulation should be considered in the window set by the service provider
+
   function refund(bytes32 id) private {
     Execution storage execution = executions[id];
     remainingExecutions[execution.requestor][execution.plan] += 1;
@@ -275,14 +298,13 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     payable(execution.requestor).transfer(execution.value);
   }
 
-  // The nonReentrant prevents this contract to be call again when the low level call is executed
-  // timestamp manipulation should be considered in the window by the service provider
-  // slither-disable-next-line timestamp
+  // This method can be executed by any account. It will execute the shceduled transaction
+  // only if the current time is in [timestamp - window, timestamp + window], and after execution
+  // will pay the service provider and ensure payment is received.
   function execute(bytes32 id) external nonReentrant whenNotPaused {
     Execution storage execution = executions[id];
 
     require(execution.state == ExecutionState.Scheduled, 'Already executed');
-    // timestamp manipulation should be considered in the window by the service provider
     // slither-disable-next-line timestamp
     require((execution.timestamp - plans[execution.plan].window) < block.timestamp, 'Too soon');
 
@@ -291,21 +313,16 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
       return;
     }
 
-    // The contract makes an external call to execute the scheduled transaction on the specified contract.
-    // It needs to get the execution result before emitting the event and changing the matatransaction state.
     // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) = payable(execution.to).call{ gas: execution.gas, value: execution.value }(execution.data);
 
-    // reentrancy prevented by nonReentrant modifier
     // slither-disable-next-line reentrancy-events
     emit Executed(id, success, result);
 
     if (success) {
-      // reentrancy prevented by nonReentrant modifier
       // slither-disable-next-line reentrancy-eth
       execution.state = ExecutionState.ExecutionSuccessful;
     } else {
-      // reentrancy prevented by nonReentrant modifier
       // slither-disable-next-line reentrancy-eth
       execution.state = ExecutionState.ExecutionFailed;
     }
