@@ -1,6 +1,5 @@
 const RIFScheduler = artifacts.require('RIFScheduler')
 const ERC677 = artifacts.require('ERC677')
-const { deployProxy } = require('@openzeppelin/truffle-upgrades')
 
 const { toBN } = web3.utils
 
