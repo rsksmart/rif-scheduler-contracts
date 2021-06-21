@@ -105,7 +105,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
 
   /*
    * Plans are paid via plan.token
-   * If plan.token is 0, the it is paid via RBTC
+   * If plan.token is 0, then it is paid via RBTC
    *   Use purchase method and set the total price in the transaction value
    * Otherwhise, if it supports ERC-677 you can use
    *   transferAndCall(
