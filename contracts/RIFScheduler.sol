@@ -197,7 +197,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
 
     require(getState(id) == ExecutionState.Nonexistent, 'Already scheduled');
     require(remainingExecutions[msg.sender][execution.plan] > 0, 'No balance available');
-    // see notice bellow, about disabled cehcks
+    // see notice bellow, about disabled checks
     // slither-disable-next-line timestamp
     require(block.timestamp <= execution.timestamp, 'Cannot schedule it in the past');
 
