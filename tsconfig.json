@@ -4,7 +4,7 @@
     "module": "commonjs",                    
     "lib": ["es6"],                     
     "allowJs": true,
-    "outDir": "types/dist",    
+    "outDir": "dist",    
     "declaration": true,
     "declarationMap": true,
     "declarationDir": "dist",                      
