@@ -288,7 +288,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     remainingExecutions[execution.requestor][execution.plan] += 1;
     emit ExecutionCancelled(id);
     (bool paymentSuccess, bytes memory paymentResult) = payable(execution.requestor).call{ value: execution.value }('');
-      require(paymentSuccess, string(paymentResult));
+    require(paymentSuccess, string(paymentResult));
   }
 
   ///////////////
