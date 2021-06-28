@@ -1,3 +1,5 @@
+const PayableContract = artifacts.require('PayableContract')
+const NotPayable = artifacts.require('NotPayable')
 const Counter = artifacts.require('Counter')
 
 const assert = require('assert')
@@ -49,12 +51,13 @@ contract('RIFScheduler - execution', (accounts) => {
       return this.rifScheduler.execute(txId, { from: this.serviceProvider })
     }
 
-    this.testExecutionWithValue = async (value, planId) => {
+    this.testExecutionWithValue = async (value, planId, payee) => {
+      const payee_ = payee || this.payee
       const timestamp = await time.latest()
       const insideWindowTime = timestamp.add(insideWindow(planId))
       const plan = plans[planId]
       const getBalance = this.payWithRBTC(planId) ? web3.eth.getBalance : this.token.balanceOf
-      const initialPayeeBalance = await getBalance(this.payee)
+      const initialPayeeBalance = await getBalance(payee_)
       const initialContractBalance = await getBalance(this.rifScheduler.address)
       const txId = await this.testScheduleWithValue(planId, incData, value, insideWindowTime)
       const receipt = await this.executeWithTime(txId, insideWindowTime)
@@ -72,7 +75,7 @@ contract('RIFScheduler - execution', (accounts) => {
       assert.strictEqual(await web3.eth.getBalance(this.counter.address).then((r) => r.toString()), value.toString(), 'wrong balance')
       // token balance transferred from contract to provider
       const expectedPayeeBalance = toBN(initialPayeeBalance).add(plan.price)
-      assert.strictEqual(await getBalance(this.payee).then((r) => r.toString()), expectedPayeeBalance.toString(), 'wrong provider balance')
+      assert.strictEqual(await getBalance(payee_).then((r) => r.toString()), expectedPayeeBalance.toString(), 'wrong provider balance')
       assert.strictEqual(
         await getBalance(this.rifScheduler.address).then((r) => r.toString()),
         initialContractBalance.toString(),
@@ -103,6 +106,13 @@ contract('RIFScheduler - execution', (accounts) => {
       // Execute transaction and check status
       await this.executeWithTime(txId, insideWindowTime)
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
+    })
+
+    it('should execute and pay rBTC to a contract address', async ()=> {
+      // set payee to a payable contract address
+      const payableContract  = await PayableContract.new()
+      await this.rifScheduler.setPayee(payableContract.address, { from: this.serviceProvider })
+      return this.testExecutionWithValue(toBN(1e15), 1, payableContract.address)
     })
 
     it('should execute and fail, then retry and success', async () => {
@@ -186,6 +196,14 @@ contract('RIFScheduler - execution', (accounts) => {
       await time.advanceBlock()
       assert.strictEqual(await this.getState(txId), ExecutionState.Overdue, 'Not overdue')
     })
+
+    it('should not execute and pay rBTC to a not payable contract address', async ()=> {
+      // set payee to a payable contract address
+      const payableContract  = await NotPayable.new()
+      await this.rifScheduler.setPayee(payableContract.address, { from: this.serviceProvider })
+      return expectRevert(this.testExecutionWithValue(toBN(1e15), 1, payableContract.address), 'Transfer failed')
+    })
+
   })
 
   describe('failing metatransactions - execution not failing', () => {

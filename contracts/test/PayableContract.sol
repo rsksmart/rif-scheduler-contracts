@@ -9,19 +9,19 @@ contract PayableContract {
     // Fallback function must be declared as external.
     fallback() external payable {
         //spend some gas
-        for(uint256 i = 0; i < 10000; i++){
+        for(uint256 i = 0; i < 100; i++){
             count++;
         }
-        // call (forwards all of the gas)
+        //call (forwards all of the gas)
         emit Log(gasleft());
     }
 
     receive() external payable {
-        //spend some gas here too
-        for(uint256 i = 0; i < 10000; i++){
+       // spend some gas here too
+        for(uint256 i = 0; i < 100; i++){
             count++;
         }
-        // call (forwards all of the gas)
+        //call (forwards all of the gas)
         emit Log(gasleft());
     }
 

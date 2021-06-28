@@ -167,7 +167,8 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     remainingExecutions[msg.sender][plan] = 0;
     if (amountToRefund == 0) return;
     if (address(plans[plan].token) == address(0x0)) {
-      payable(msg.sender).transfer(amountToRefund);
+      (bool paymentSuccess, ) = payable(msg.sender).call{value:amountToRefund}("");
+      require(paymentSuccess, "Transfer failed");
     } else {
       require(plans[plan].token.transfer(msg.sender, amountToRefund), 'Refund failed');
     }
@@ -276,7 +277,8 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     execution.state = ExecutionState.Cancelled;
     remainingExecutions[execution.requestor][execution.plan] += 1;
     emit ExecutionCancelled(id);
-    payable(execution.requestor).transfer(execution.value);
+    (bool paymentSuccess, ) = payable(execution.requestor).call{value:execution.value}("");
+    require(paymentSuccess, "Transfer failed");
   }
 
   ///////////////
@@ -330,7 +332,8 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     if (address(plans[execution.plan].token) != address(0x0)) {
       require(plans[execution.plan].token.transfer(payee, plans[execution.plan].pricePerExecution), "Couldn't transfer to payee");
     } else {
-      payable(payee).transfer(plans[execution.plan].pricePerExecution);
+      (bool paymentSuccess, ) = payable(payee).call{value:plans[execution.plan].pricePerExecution}("");
+      require(paymentSuccess, "Transfer failed");
     }
   }
 
