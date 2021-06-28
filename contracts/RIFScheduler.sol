@@ -295,10 +295,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   // EXECUTION //
   ///////////////
 
-  // Notice about omitted checks:
-  // reentrancy-*: prevented by nonReentrant modifier. The contract makes an external call to
-  //   execute the scheduled transaction on the specified contract. It needs to get the execution
-  //   result before emitting the event and changing the matatransaction state.
+  // Notice about security and omitted checks:
   // low-level-calls: the contract will execute call wether the contract has code or not. It is
   //   responsability of the requestor to choose the correct contract address.
   // timestamp: timestamp manipulation should be considered in the window set by the service provider
