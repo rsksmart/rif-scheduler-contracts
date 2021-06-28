@@ -6,7 +6,15 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 
 contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
-  enum ExecutionState { Nonexistent, Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
+  enum ExecutionState {
+    Nonexistent,
+    Scheduled,
+    ExecutionSuccessful,
+    ExecutionFailed,
+    Overdue,
+    Refunded,
+    Cancelled
+  }
   // State transitions for scheduled executions:
   //   Initial state: Nonexistent
   //   Nonexistent -> Scheduled (requestor scheduled execution)
@@ -167,8 +175,8 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     remainingExecutions[msg.sender][plan] = 0;
     if (amountToRefund == 0) return;
     if (address(plans[plan].token) == address(0x0)) {
-      (bool paymentSuccess, ) = payable(msg.sender).call{value:amountToRefund}("");
-      require(paymentSuccess, "Transfer failed");
+      (bool paymentSuccess, ) = payable(msg.sender).call{ value: amountToRefund }('');
+      require(paymentSuccess, 'Transfer failed');
     } else {
       require(plans[plan].token.transfer(msg.sender, amountToRefund), 'Refund failed');
     }
@@ -222,8 +230,10 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 totalValue;
     ids = new bytes32[](data.length);
     for (uint256 i = 0; i < data.length; i++) {
-      (uint256 plan, address to, bytes memory txData, uint256 gas, uint256 timestamp, uint256 value) =
-        abi.decode(data[i], (uint256, address, bytes, uint256, uint256, uint256));
+      (uint256 plan, address to, bytes memory txData, uint256 gas, uint256 timestamp, uint256 value) = abi.decode(
+        data[i],
+        (uint256, address, bytes, uint256, uint256, uint256)
+      );
       totalValue += value;
       ids[i] = _schedule(plan, to, txData, gas, timestamp, value);
     }
@@ -277,8 +287,8 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     execution.state = ExecutionState.Cancelled;
     remainingExecutions[execution.requestor][execution.plan] += 1;
     emit ExecutionCancelled(id);
-    (bool paymentSuccess, ) = payable(execution.requestor).call{value:execution.value}("");
-    require(paymentSuccess, "Transfer failed");
+    (bool paymentSuccess, ) = payable(execution.requestor).call{ value: execution.value }('');
+    require(paymentSuccess, 'Transfer failed');
   }
 
   ///////////////
@@ -332,8 +342,8 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     if (address(plans[execution.plan].token) != address(0x0)) {
       require(plans[execution.plan].token.transfer(payee, plans[execution.plan].pricePerExecution), "Couldn't transfer to payee");
     } else {
-      (bool paymentSuccess, ) = payable(payee).call{value:plans[execution.plan].pricePerExecution}("");
-      require(paymentSuccess, "Transfer failed");
+      (bool paymentSuccess, ) = payable(payee).call{ value: plans[execution.plan].pricePerExecution }('');
+      require(paymentSuccess, 'Transfer failed');
     }
   }
 

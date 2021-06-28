@@ -108,9 +108,9 @@ contract('RIFScheduler - execution', (accounts) => {
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
     })
 
-    it('should execute and pay rBTC to a contract address', async ()=> {
+    it('should execute and pay rBTC to a contract address', async () => {
       // set payee to a payable contract address
-      const payableContract  = await PayableContract.new()
+      const payableContract = await PayableContract.new()
       await this.rifScheduler.setPayee(payableContract.address, { from: this.serviceProvider })
       return this.testExecutionWithValue(toBN(1e15), 1, payableContract.address)
     })
@@ -197,13 +197,12 @@ contract('RIFScheduler - execution', (accounts) => {
       assert.strictEqual(await this.getState(txId), ExecutionState.Overdue, 'Not overdue')
     })
 
-    it('should not execute and pay rBTC to a not payable contract address', async ()=> {
+    it('should not execute and pay rBTC to a not payable contract address', async () => {
       // set payee to a payable contract address
-      const payableContract  = await NotPayable.new()
+      const payableContract = await NotPayable.new()
       await this.rifScheduler.setPayee(payableContract.address, { from: this.serviceProvider })
       return expectRevert(this.testExecutionWithValue(toBN(1e15), 1, payableContract.address), 'Transfer failed')
     })
-
   })
 
   describe('failing metatransactions - execution not failing', () => {

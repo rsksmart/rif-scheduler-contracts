@@ -1,4 +1,4 @@
 {
   "detectors_to_exclude": "solc-version",
-  "exclude-files": "node_modules|Migrations.sol|contracts/test"
+  "filter_paths": "node_modules|Counter.sol|Migrations.sol|NotPayable.sol|PayableContract.sol"
 }
