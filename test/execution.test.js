@@ -201,7 +201,7 @@ contract('RIFScheduler - execution', (accounts) => {
       // set payee to a payable contract address
       const payableContract = await NotPayable.new()
       await this.rifScheduler.setPayee(payableContract.address, { from: this.serviceProvider })
-      return expectRevert(this.testExecutionWithValue(toBN(1e15), 1, payableContract.address), 'Transfer failed')
+      return expectRevert.unspecified(this.testExecutionWithValue(toBN(1e15), 1, payableContract.address))
     })
   })
 
