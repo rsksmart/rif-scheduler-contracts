@@ -297,10 +297,10 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     refund(execution);
   }
 
-  // This method is meant to be executed by the requestor, to get a refund on overdue executions.
-  // If it's called by anyone else, the caller will spend gas and get no benefit.
+  // This method is meant to be executed by the requestor to get a refund on overdue executions.
   function requestExecutionRefund(bytes32 id) external {
     require(getState(id) == ExecutionState.Overdue, 'Not overdue');
+    require(msg.sender == executions[id].requestor, 'Not authorized');
     Execution storage execution = executions[id];
     execution.state = ExecutionState.Refunded;
     emit ExecutionRefunded(id);

@@ -150,17 +150,23 @@ contract('RIFScheduler - execution', (accounts) => {
     beforeEach(() => {
       this.refundTest = async (planId) => {
         const timestamp = await time.latest()
+        const valueForTx = toBN(10)
         // scheduled for tomorrow
         const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
-        const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
-        const requestorBalance = await web3.eth.getBalance(this.requestor)
+        const txId = await this.testScheduleWithValue(planId, incData, valueForTx, scheduleTimestamp)
+        const requestorBalanceAfterSchedule = toBN(await web3.eth.getBalance(this.requestor))
         const executionTimestamp = timestamp.add(toBN(ONE_DAY).add(outsideWindow(planId)))
         await time.increaseTo(executionTimestamp)
         await time.advanceBlock()
-        const refundReceipt = await this.rifScheduler.requestExecutionRefund(txId)
-        expectEvent(refundReceipt, 'ExecutionRefunded')
+        const refundTx = await this.rifScheduler.requestExecutionRefund(txId, { from: this.requestor })
+        expectEvent(refundTx, 'ExecutionRefunded')
 
-        assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
+        const tx = await web3.eth.getTransaction(refundTx.tx)
+        const refundTxCost = toBN(refundTx.receipt.gasUsed * tx.gasPrice)
+        const expectedRequestorBalance = requestorBalanceAfterSchedule.add(valueForTx).sub(refundTxCost)
+        const finalRequestorBalance = toBN(await web3.eth.getBalance(this.requestor))
+        assert.strictEqual(expectedRequestorBalance.toString(), finalRequestorBalance.toString(), 'Transaction value not refunded')
+
         assert.strictEqual(
           (await this.rifScheduler.remainingExecutions(this.requestor, toBN(planId))).toString(),
           '1',
@@ -179,7 +185,15 @@ contract('RIFScheduler - execution', (accounts) => {
       const timestamp = await time.latest()
       const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
       const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
-      return expectRevert(this.rifScheduler.requestExecutionRefund(txId), 'Not overdue')
+      return expectRevert(this.rifScheduler.requestExecutionRefund(txId, { from: this.requestor }), 'Not overdue')
+    })
+
+    it('should not refund if not the requestor', async () => {
+      const planId = 0
+      const timestamp = await time.latest()
+      const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
+      const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
+      return expectRevert(this.rifScheduler.requestExecutionRefund(txId, { from: this.anotherAccount }), 'Not overdue')
     })
   })
 
