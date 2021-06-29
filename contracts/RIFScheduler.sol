@@ -44,7 +44,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
 
   address public serviceProvider;
   address public payee;
-  uint256 public minimumTimeBeforeExecution; // this is the minimum time that is required to between the Schedule and the Exection time requested
+  uint256 public minimumTimeBeforeExecution; // minimum time required between the schedule and execution time requested 
 
   Plan[] public plans;
 
