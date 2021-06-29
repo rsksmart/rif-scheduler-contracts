@@ -58,6 +58,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   event ExecutionRequested(bytes32 indexed id, uint256 timestamp);
   event Executed(bytes32 indexed id, bool success, bytes result);
   event ExecutionCancelled(bytes32 indexed id);
+  event ExecutionRefunded(bytes32 indexed id);
 
   modifier onlyProvider() {
     require(address(msg.sender) == serviceProvider, 'Not authorized');
@@ -279,16 +280,31 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   // CANCELLING //
   ////////////////
 
-  function cancelScheduling(bytes32 id) external {
-    require(executions[id].state == ExecutionState.Scheduled, 'Transaction not scheduled'); // Checking state directly to consider Scheduled and Overdue
-    require(msg.sender == executions[id].requestor, 'Not authorized');
-
-    Execution storage execution = executions[id];
-    execution.state = ExecutionState.Cancelled;
-    remainingExecutions[execution.requestor][execution.plan] += 1;
-    emit ExecutionCancelled(id);
+  function refund(Execution memory execution) private {
+    remainingExecutions[execution.requestor][execution.plan]++;
     (bool paymentSuccess, bytes memory paymentResult) = payable(execution.requestor).call{ value: execution.value }('');
     require(paymentSuccess, string(paymentResult));
+  }
+
+  // This method is meant to be executed by the requestor, to cancel scheduled executions.
+  // If it's called by anyone else, the caller will spend gas and get no benefit.
+  function cancelScheduling(bytes32 id) external {
+    require(getState(id) == ExecutionState.Scheduled, 'Not scheduled');
+    require(msg.sender == executions[id].requestor, 'Not authorized');
+    Execution storage execution = executions[id];
+    execution.state = ExecutionState.Cancelled;
+    emit ExecutionCancelled(id);
+    refund(execution);
+  }
+
+  // This method is meant to be executed by the requestor, to get a refund on overdue executions.
+  // If it's called by anyone else, the caller will spend gas and get no benefit.
+  function requestExecutionRefund(bytes32 id) external {
+    require(getState(id) == ExecutionState.Overdue, 'Not overdue');
+    Execution storage execution = executions[id];
+    execution.state = ExecutionState.Refunded;
+    emit ExecutionRefunded(id);
+    refund(execution);
   }
 
   ///////////////
@@ -300,26 +316,17 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   //   responsability of the requestor to choose the correct contract address.
   // timestamp: timestamp manipulation should be considered in the window set by the service provider
 
-  function refund(bytes32 id) private {
-    Execution storage execution = executions[id];
-    remainingExecutions[execution.requestor][execution.plan] += 1;
-    execution.state = ExecutionState.Refunded;
-    payable(execution.requestor).transfer(execution.value);
-  }
-
-  // This method can be executed by any account. It will execute the shceduled transaction
+  // This method is meant to be executed by the service provider.
+  // If it's called by anyone else, the caller will spend gas and get no benefit.
+  // It's left open to account in case that the service provider wants to use a different one to call it.
+  // It will execute the scheduled transaction
   // only if the current time is in [timestamp - window, timestamp + window], and after execution
   // will pay the service provider and ensure payment is received.
   function execute(bytes32 id) external nonReentrant whenNotPaused {
     Execution storage execution = executions[id];
 
-    require(execution.state == ExecutionState.Scheduled, 'Already executed');
+    require(getState(id) == ExecutionState.Scheduled, 'Not scheduled');
     require((execution.timestamp - plans[execution.plan].window) < block.timestamp, 'Too soon');
-
-    if (getState(id) == ExecutionState.Overdue) {
-      refund(id);
-      return;
-    }
 
     (bool success, bytes memory result) = payable(execution.to).call{ gas: execution.gas, value: execution.value }(execution.data);
 
