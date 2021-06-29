@@ -44,6 +44,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
 
   address public serviceProvider;
   address public payee;
+  uint256 public minimumTimeBeforeExecution; // this is the minimum time that is required to between the Schedule and the Exection time requested
 
   Plan[] public plans;
 
@@ -64,11 +65,13 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     _;
   }
 
-  constructor(address serviceProvider_, address payee_) {
+  constructor(address serviceProvider_, address payee_, uint256 minimumTimeBeforeExecution_) {
     require(payee_ != address(0x0), 'Payee address cannot be 0x0');
     require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
+    require(minimumTimeBeforeExecution_ > 15, 'Executions should be requested at least 15 seconds in advance');
     serviceProvider = serviceProvider_;
     payee = payee_;
+    minimumTimeBeforeExecution = minimumTimeBeforeExecution_;
   }
 
   ///////////
@@ -208,7 +211,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     require(remainingExecutions[msg.sender][execution.plan] > 0, 'No balance available');
     // see notice bellow, about disabled checks
     // slither-disable-next-line timestamp
-    require(block.timestamp <= execution.timestamp, 'Cannot schedule it in the past');
+    require(block.timestamp + minimumTimeBeforeExecution <= execution.timestamp, 'Cannot schedule it in the past');
 
     remainingExecutions[msg.sender][execution.plan] -= 1;
     executions[id] = execution;
@@ -298,7 +301,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   // Notice about security and omitted checks:
   // low-level-calls: the contract will execute call wether the contract has code or not. It is
   //   responsability of the requestor to choose the correct contract address.
-  // timestamp: timestamp manipulation should be considered in the window set by the service provider
+  // timestamp: timestamp manipulation should be considered in the window and the minimumTimeBeforeExecution set by the service provider
 
   function refund(bytes32 id) private {
     Execution storage execution = executions[id];

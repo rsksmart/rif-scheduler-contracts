@@ -4,6 +4,7 @@ const { expectRevert, constants } = require('@openzeppelin/test-helpers')
 const assert = require('assert')
 
 const { setupContracts } = require('./common')
+const { toBN } = web3.utils
 
 contract('RIFScheduler - admin', (accounts) => {
   beforeEach(async () => {
@@ -12,9 +13,13 @@ contract('RIFScheduler - admin', (accounts) => {
 
   describe('constructor', () => {
     it('should reject if admin is not defined', () =>
-      expectRevert(RIFScheduler.new(constants.ZERO_ADDRESS, this.payee), 'Service provider address cannot be 0x0'))
+      expectRevert(RIFScheduler.new(constants.ZERO_ADDRESS, this.payee, toBN(1000)), 'Service provider address cannot be 0x0'))
+    
     it('should reject if provider is not defined', () =>
-      expectRevert(RIFScheduler.new(this.serviceProvider, constants.ZERO_ADDRESS), 'Payee address cannot be 0x0'))
+      expectRevert(RIFScheduler.new(this.serviceProvider, constants.ZERO_ADDRESS, toBN(1000)), 'Payee address cannot be 0x0'))
+    
+    it('should reject if minimun time before execution is lower than 15 seconds', () =>
+      expectRevert(RIFScheduler.new(this.serviceProvider, this.payee, toBN(10)), 'Executions should be requested at least 15 seconds in advance'))
   })
 
   describe('Pausable', () => {

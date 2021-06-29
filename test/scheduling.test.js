@@ -103,6 +103,11 @@ contract('RIFScheduler - scheduling', (accounts) => {
     return expectRevert(this.testScheduleWithValue(0, toBN(1e15), scheduleTime), 'Cannot schedule it in the past')
   })
 
+  it('cannot schedule too soon', async () => {
+    const scheduleTime = (await time.latest()).add(toBN(10))
+    return expectRevert(this.testScheduleWithValue(0, toBN(1e15), scheduleTime), 'Cannot schedule it in the past')
+  })
+
   it('cannot schedule if requestor has no balance', async () => {
     const scheduleTime = (await time.latest()).add(toBN(100))
     // buy one, use one
