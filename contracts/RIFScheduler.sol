@@ -295,10 +295,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   // EXECUTION //
   ///////////////
 
-  // Notice about omitted checks:
-  // reentrancy-*: prevented by nonReentrant modifier. The contract makes an external call to
-  //   execute the scheduled transaction on the specified contract. It needs to get the execution
-  //   result before emitting the event and changing the matatransaction state.
+  // Notice about security and omitted checks:
   // low-level-calls: the contract will execute call wether the contract has code or not. It is
   //   responsability of the requestor to choose the correct contract address.
   // timestamp: timestamp manipulation should be considered in the window set by the service provider
@@ -317,7 +314,6 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     Execution storage execution = executions[id];
 
     require(execution.state == ExecutionState.Scheduled, 'Already executed');
-    // slither-disable-next-line timestamp
     require((execution.timestamp - plans[execution.plan].window) < block.timestamp, 'Too soon');
 
     if (getState(id) == ExecutionState.Overdue) {
@@ -325,17 +321,13 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
       return;
     }
 
-    // slither-disable-next-line low-level-calls
     (bool success, bytes memory result) = payable(execution.to).call{ gas: execution.gas, value: execution.value }(execution.data);
 
-    // slither-disable-next-line reentrancy-events
     emit Executed(id, success, result);
 
     if (success) {
-      // slither-disable-next-line reentrancy-eth
       execution.state = ExecutionState.ExecutionSuccessful;
     } else {
-      // slither-disable-next-line reentrancy-eth
       execution.state = ExecutionState.ExecutionFailed;
     }
 
