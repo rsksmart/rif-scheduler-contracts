@@ -146,19 +146,27 @@ contract('RIFScheduler - execution', (accounts) => {
       assert.strictEqual(await this.getState(txId), ExecutionState.ExecutionSuccessful, 'Execution failed')
     })
   })
-  describe('failing', () => {
+  describe('refund', () => {
     beforeEach(() => {
       this.refundTest = async (planId) => {
         const timestamp = await time.latest()
+        const valueForTx = toBN(10)
         // scheduled for tomorrow
         const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
-        const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
-        const requestorBalance = await web3.eth.getBalance(this.requestor)
-        // execute after window
-        const receipt = await this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).add(outsideWindow(planId))))
-        // this should reflect that it was late
-        expectEvent.notEmitted(receipt, 'Executed')
-        assert.strictEqual((await web3.eth.getBalance(this.requestor)) - requestorBalance, 0, 'Transaction value not refunded')
+        const txId = await this.testScheduleWithValue(planId, incData, valueForTx, scheduleTimestamp)
+        const requestorBalanceAfterSchedule = toBN(await web3.eth.getBalance(this.requestor))
+        const executionTimestamp = timestamp.add(toBN(ONE_DAY).add(outsideWindow(planId)))
+        await time.increaseTo(executionTimestamp)
+        await time.advanceBlock()
+        const refundTx = await this.rifScheduler.requestExecutionRefund(txId, { from: this.requestor })
+        expectEvent(refundTx, 'ExecutionRefunded')
+
+        const tx = await web3.eth.getTransaction(refundTx.tx)
+        const refundTxCost = toBN(refundTx.receipt.gasUsed * tx.gasPrice)
+        const expectedRequestorBalance = requestorBalanceAfterSchedule.add(valueForTx).sub(refundTxCost)
+        const finalRequestorBalance = toBN(await web3.eth.getBalance(this.requestor))
+        assert.strictEqual(expectedRequestorBalance.toString(), finalRequestorBalance.toString(), 'Transaction value not refunded')
+
         assert.strictEqual(
           (await this.rifScheduler.remainingExecutions(this.requestor, toBN(planId))).toString(),
           '1',
@@ -167,9 +175,32 @@ contract('RIFScheduler - execution', (accounts) => {
         assert.strictEqual(await this.getState(txId), ExecutionState.Refunded, 'Execution not failed')
       }
     })
+
+    it('should refund if it executes after timestamp + window', () => this.refundTest(0))
+
+    it('should refund if it executes after timestamp + window - rBTC', () => this.refundTest(1))
+
+    it('should not refund if not overdue', async () => {
+      const planId = 0
+      const timestamp = await time.latest()
+      const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
+      const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
+      return expectRevert(this.rifScheduler.requestExecutionRefund(txId, { from: this.requestor }), 'Not overdue')
+    })
+
+    it('should not refund if not the requestor', async () => {
+      const planId = 0
+      const timestamp = await time.latest()
+      const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
+      const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
+      return expectRevert(this.rifScheduler.requestExecutionRefund(txId, { from: this.anotherAccount }), 'Not overdue')
+    })
+  })
+
+  describe('failing', () => {
     it('cannot execute twice', async () => {
       const txId = await this.testExecutionWithValue(toBN(0), 0)
-      return expectRevert(this.rifScheduler.execute(txId), 'Already executed')
+      return expectRevert(this.rifScheduler.execute(txId), 'Not scheduled')
     })
 
     it('cannot execute before timestamp - window', async () => {
@@ -181,9 +212,15 @@ contract('RIFScheduler - execution', (accounts) => {
       return expectRevert(this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).sub(outsideWindow(0)))), 'Too soon')
     })
 
-    it('should refund if it executes after timestamp + window', () => this.refundTest(0))
-
-    it('should refund if it executes after timestamp + window - rBTC', () => this.refundTest(1))
+    it('cannot execute after timestamp + window', async () => {
+      const planId = 0
+      const timestamp = await time.latest()
+      // scheduled for tomorrow
+      const scheduleTimestamp = timestamp.add(toBN(ONE_DAY))
+      const txId = await this.testScheduleWithValue(planId, incData, toBN(10), scheduleTimestamp)
+      // execute after window
+      return expectRevert(this.executeWithTime(txId, timestamp.add(toBN(ONE_DAY).add(outsideWindow(planId)))), 'Not scheduled')
+    })
 
     it('should go from scheduled to Overdue when time passes', async () => {
       const timestamp = await time.latest()
