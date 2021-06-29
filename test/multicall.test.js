@@ -3,6 +3,7 @@ const assert = require('assert')
 const { time } = require('@openzeppelin/test-helpers')
 const { toBN } = web3.utils
 const { plans, ExecutionState, setupContracts, getExecutionId, getMethodSig } = require('./common.js')
+const { expectRevert } = require('@openzeppelin/test-helpers')
 
 const incData = getMethodSig({ inputs: [], name: 'inc', type: 'function' })
 
@@ -40,5 +41,31 @@ contract('RIFScheduler - multicall', (accounts) => {
     assert.strictEqual(actual[5].toString(), '0')
     assert.strictEqual(actual[6].toString(), ExecutionState.Scheduled)
     assert.strictEqual(scheduled.toString(10), '0', `Shouldn't have any scheduling`)
+  })
+
+  it('should revert', async () => {
+    const plan = 0
+    const scheduleTime = (await time.latest()).add(toBN(100))
+    const to = this.counter.address
+    const gas = toBN(await this.counter.inc.estimateGas())
+    const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
+
+    const txID = '0x600b40d71ede22186cf277bdf9293563e9532729324708bcd50de97b01d7ffa8'
+    const getExecutionState = this.rifScheduler.contract.methods.getState(txID).encodeABI() // We don't care if doesn't exist
+
+    return expectRevert(this.rifScheduler.multicall([getExecutionState, schedule, getExecutionState],true, { from: this.requestor }), "Transaction failed:1")
+  })
+
+  it('should not revert', async () => {
+    const plan = 0
+    const scheduleTime = (await time.latest()).add(toBN(100))
+    const to = this.counter.address
+    const gas = toBN(await this.counter.inc.estimateGas())
+    const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
+
+    const txID = '0x600b40d71ede22186cf277bdf9293563e9532729324708bcd50de97b01d7ffa8'
+    const getExecutionState = this.rifScheduler.contract.methods.getState(txID).encodeABI() // We don't care if doesn't exist
+
+    return this.rifScheduler.multicall([getExecutionState, schedule, getExecutionState],false, { from: this.requestor })
   })
 })
