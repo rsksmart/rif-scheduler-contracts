@@ -320,11 +320,12 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   // will pay the service provider and ensure payment is received.
   function execute(bytes32 id) external nonReentrant whenNotPaused {
     Execution storage execution = executions[id];
+    Plan memory plan = plans[execution.plan];
 
     require(getState(id) == ExecutionState.Scheduled, 'Not scheduled');
-    require((execution.timestamp - plans[execution.plan].window) < block.timestamp, 'Too soon');
+    require((execution.timestamp - plan.window) < block.timestamp, 'Too soon');
 
-    (bool success, bytes memory result) = payable(execution.to).call{ gas: plans[execution.plan].gasLimit, value: execution.value }(
+    (bool success, bytes memory result) = payable(execution.to).call{ gas: plan.gasLimit, value: execution.value }(
       execution.data
     );
 
@@ -336,10 +337,10 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
       execution.state = ExecutionState.ExecutionFailed;
     }
 
-    if (address(plans[execution.plan].token) != address(0x0)) {
-      require(plans[execution.plan].token.transfer(payee, plans[execution.plan].pricePerExecution), "Couldn't transfer to payee");
+    if (address(plan.token) != address(0x0)) {
+      require(plan.token.transfer(payee, plan.pricePerExecution), "Couldn't transfer to payee");
     } else {
-      (bool paymentSuccess, bytes memory paymentResult) = payable(payee).call{ value: plans[execution.plan].pricePerExecution }('');
+      (bool paymentSuccess, bytes memory paymentResult) = payable(payee).call{ value: plan.pricePerExecution }('');
       require(paymentSuccess, string(paymentResult));
     }
   }
