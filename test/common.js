@@ -4,8 +4,9 @@ const ERC677 = artifacts.require('ERC677')
 const { toBN } = web3.utils
 
 const plans = [
-  { price: toBN(15), window: toBN(10000) },
-  { price: toBN(4), window: toBN(3000) },
+  { price: toBN(15), window: toBN(10000), gasLimit: toBN(200000) },
+  { price: toBN(4), window: toBN(3000), gasLimit: toBN(100000) },
+  { price: toBN(15), window: toBN(10000), gasLimit: toBN(10) }, //no gas plan use to make it fail
 ]
 
 exports.ExecutionState = {

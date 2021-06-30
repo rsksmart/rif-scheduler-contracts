@@ -25,14 +25,13 @@ contract('RIFScheduler - scheduling', (accounts) => {
     await this.token.approve(this.rifScheduler.address, toBN(1000), { from: this.requestor })
 
     this.counter = await Counter.new()
-    this.gas = toBN(await this.counter.inc.estimateGas())
 
-    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, plans[0].gasLimit, this.token.address, { from: this.serviceProvider })
 
     this.testScheduleWithValue = async (plan, value, timestamp) => {
       const to = this.counter.address
       await this.rifScheduler.purchase(plan, 1, { from: this.requestor })
-      const scheduleReceipt = await this.rifScheduler.schedule(plan, to, incData, this.gas, timestamp, { from: this.requestor, value })
+      const scheduleReceipt = await this.rifScheduler.schedule(plan, to, incData, timestamp, { from: this.requestor, value })
       const executionId = getExecutionId(scheduleReceipt)
       const actual = await this.rifScheduler.getExecutionById(executionId)
       const scheduled = await this.rifScheduler.remainingExecutions(this.requestor, plan)
@@ -41,10 +40,9 @@ contract('RIFScheduler - scheduling', (accounts) => {
       assert.strictEqual(actual[1].toString(), toBN(plan).toString(), 'Wrong plan')
       assert.strictEqual(actual[2], to, 'Wrong contract address')
       assert.strictEqual(actual[3], incData)
-      assert.strictEqual(actual[4].toString(), this.gas.toString())
-      assert.strictEqual(actual[5].toString(), timestamp.toString())
-      assert.strictEqual(actual[6].toString(), value.toString())
-      assert.strictEqual(actual[7].toString(), ExecutionState.Scheduled)
+      assert.strictEqual(actual[4].toString(), timestamp.toString())
+      assert.strictEqual(actual[5].toString(), value.toString())
+      assert.strictEqual(actual[6].toString(), ExecutionState.Scheduled)
 
       assert.strictEqual(scheduled.toString(10), '0', `Shouldn't have any scheduling`)
       return executionId
@@ -74,14 +72,14 @@ contract('RIFScheduler - scheduling', (accounts) => {
       '2',
       `Wrong initial balance after plan cancellation`
     )
-    const scheduleReceipt1 = await this.rifScheduler.schedule(plan, this.counter.address, incData, this.gas, timestamp, {
+    const scheduleReceipt1 = await this.rifScheduler.schedule(plan, this.counter.address, incData, timestamp, {
       from: this.requestor,
       value,
     })
     const executionId1 = getExecutionId(scheduleReceipt1)
     assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, plan)).toString(), '1', `Wrong balance - scheduled 1st`)
     await this.rifScheduler.removePlan(0, { from: this.serviceProvider })
-    const scheduleReceipt2 = await this.rifScheduler.schedule(plan, this.counter.address, incData, this.gas, timestamp.add(toBN(100)), {
+    const scheduleReceipt2 = await this.rifScheduler.schedule(plan, this.counter.address, incData, timestamp.add(toBN(100)), {
       from: this.requestor,
       value,
     })
@@ -89,8 +87,8 @@ contract('RIFScheduler - scheduling', (accounts) => {
     const executionId2 = getExecutionId(scheduleReceipt2)
     const actual1 = await this.rifScheduler.getExecutionById(executionId1)
     const actual2 = await this.rifScheduler.getExecutionById(executionId2)
-    assert.strictEqual(actual1[7].toString(), ExecutionState.Scheduled)
-    assert.strictEqual(actual2[7].toString(), ExecutionState.Scheduled)
+    assert.strictEqual(actual1[6].toString(), ExecutionState.Scheduled)
+    assert.strictEqual(actual2[6].toString(), ExecutionState.Scheduled)
   })
 
   it('schedule a new execution with value', async () => {
@@ -114,7 +112,7 @@ contract('RIFScheduler - scheduling', (accounts) => {
     await this.testScheduleWithValue(0, toBN(0), scheduleTime)
     // try to schedule another
     return expectRevert(
-      this.rifScheduler.schedule(0, this.counter.address, incData, toBN(await this.counter.inc.estimateGas()), scheduleTime.add(toBN(1)), {
+      this.rifScheduler.schedule(0, this.counter.address, incData, scheduleTime.add(toBN(1)), {
         from: this.requestor,
         value: toBN(0),
       }),
@@ -148,7 +146,7 @@ contract('RIFScheduler - scheduling', (accounts) => {
 
       //State should be Cancelled
       const scheduling = await this.rifScheduler.getExecutionById(txId)
-      assert.strictEqual(scheduling[7].toString(), ExecutionState.Cancelled, 'Not cancelled')
+      assert.strictEqual(scheduling[6].toString(), ExecutionState.Cancelled, 'Not cancelled')
 
       //Scheduling should be refunded
       assert.strictEqual((await this.rifScheduler.remainingExecutions(this.requestor, toBN(0))).toString(), '1', 'Schedule not refunded')
@@ -200,8 +198,8 @@ contract('RIFScheduler - scheduling', (accounts) => {
 
       this.encodeOneExecution = (execution) => {
         return web3.eth.abi.encodeParameters(
-          ['uint256', 'address', 'bytes', 'uint256', 'uint256', 'uint256'],
-          [execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value]
+          ['uint256', 'address', 'bytes', 'uint256', 'uint256'],
+          [execution.plan, execution.to, execution.data, execution.timestamp, execution.value]
         )
       }
 
@@ -212,11 +210,10 @@ contract('RIFScheduler - scheduling', (accounts) => {
       this.getSampleExecutions = async (plan, quantity) => {
         const result = []
         const to = this.counter.address
-        const gas = toBN(await this.counter.inc.estimateGas())
         const timestampIncrement = toBN(100)
         const timestamp = (await time.latest()).add(toBN(100))
         const value = toBN(plans[plan].price)
-        const sampleExecution = { plan, to, data: incData, gas, timestamp, value }
+        const sampleExecution = { plan, to, data: incData, timestamp, value }
         for (let i = 0; i < quantity; i++) {
           result.push({ ...sampleExecution, timestamp: timestamp.add(timestampIncrement.mul(toBN(i))) })
         }
@@ -244,7 +241,6 @@ contract('RIFScheduler - scheduling', (accounts) => {
         assert.strictEqual(scheduledExecution.plan.toString(), requestedExecution.plan.toString(), 'Wrong plan')
         assert.strictEqual(scheduledExecution.to, requestedExecution.to, 'Wrong contract address')
         assert.strictEqual(scheduledExecution.data, requestedExecution.data)
-        assert.strictEqual(scheduledExecution.gas.toString(), requestedExecution.gas.toString())
         assert.strictEqual(scheduledExecution.timestamp.toString(), requestedExecution.timestamp.toString())
         assert.strictEqual(scheduledExecution.value.toString(), requestedExecution.value.toString())
         assert.strictEqual(scheduledExecution.state.toString(), ExecutionState.Scheduled)
@@ -272,7 +268,6 @@ contract('RIFScheduler - scheduling', (accounts) => {
         assert.strictEqual(scheduledExecution.plan.toString(), requestedExecution.plan.toString(), 'Wrong plan')
         assert.strictEqual(scheduledExecution.to, requestedExecution.to, 'Wrong contract address')
         assert.strictEqual(scheduledExecution.data, requestedExecution.data)
-        assert.strictEqual(scheduledExecution.gas.toString(), requestedExecution.gas.toString())
         assert.strictEqual(scheduledExecution.timestamp.toString(), requestedExecution.timestamp.toString())
         assert.strictEqual(scheduledExecution.value.toString(), requestedExecution.value.toString())
         assert.strictEqual(scheduledExecution.state.toString(), ExecutionState.Scheduled)
