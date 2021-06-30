@@ -53,7 +53,10 @@ contract('RIFScheduler - multicall', (accounts) => {
     const txID = '0x600b40d71ede22186cf277bdf9293563e9532729324708bcd50de97b01d7ffa8'
     const getExecutionState = this.rifScheduler.contract.methods.getState(txID).encodeABI() // We don't care if doesn't exist
 
-    return expectRevert(this.rifScheduler.multicall([getExecutionState, schedule, getExecutionState],true, { from: this.requestor }), "Transaction failed:1")
+    return expectRevert(
+      this.rifScheduler.multicall([getExecutionState, schedule, getExecutionState], true, { from: this.requestor }),
+      'Transaction failed:1'
+    )
   })
 
   it('should not revert', async () => {
@@ -66,6 +69,6 @@ contract('RIFScheduler - multicall', (accounts) => {
     const txID = '0x600b40d71ede22186cf277bdf9293563e9532729324708bcd50de97b01d7ffa8'
     const getExecutionState = this.rifScheduler.contract.methods.getState(txID).encodeABI() // We don't care if doesn't exist
 
-    return this.rifScheduler.multicall([getExecutionState, schedule, getExecutionState],false, { from: this.requestor })
+    return this.rifScheduler.multicall([getExecutionState, schedule, getExecutionState], false, { from: this.requestor })
   })
 })

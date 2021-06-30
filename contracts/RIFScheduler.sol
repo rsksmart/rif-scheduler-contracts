@@ -4,10 +4,9 @@ import '@rsksmart/erc677/contracts/IERC677.sol';
 import '@rsksmart/erc677/contracts/IERC677TransferReceiver.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
-import "@openzeppelin/contracts/utils/Strings.sol";
+import '@openzeppelin/contracts/utils/Strings.sol';
 
 contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
-
   using Strings for uint256;
 
   enum ExecutionState {
