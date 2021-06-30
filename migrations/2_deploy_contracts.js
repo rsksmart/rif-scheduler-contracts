@@ -17,7 +17,7 @@ module.exports = async (deployer, network, accounts) => {
 
   if (network === 'rskTestnet') {
     await RIFScheduler.deployed().then((rifScheduler) =>
-      rifScheduler.addPlan('10000000000000', '7200', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
+      rifScheduler.addPlan('10000000000000', '7200', '100000', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
     )
   }
 
@@ -25,7 +25,7 @@ module.exports = async (deployer, network, accounts) => {
     const devAccount = 'YOUR_ACCOUNT'
     await web3.eth.sendTransaction({ from: accounts[0], to: devAccount, value: '1000000000000000000' })
     await deployer.deploy(ERC677, devAccount, web3.utils.toBN('1000000000000000000000'), 'RIFOS', 'RIF')
-    await RIFScheduler.deployed().then((rifScheduler) => rifScheduler.addPlan('1000000000000000000', '300', ERC677.address))
+    await RIFScheduler.deployed().then((rifScheduler) => rifScheduler.addPlan('1000000000000000000', '300', '100000', ERC677.address))
   }
 
   if (network === 'develop' || network === 'ganache') {

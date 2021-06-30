@@ -12,12 +12,13 @@ contract('RIFScheduler - plans', (accounts) => {
     this.token = token
     this.rifScheduler = rifScheduler
 
-    this.testAddPlan = async (price, window, token, account) => {
+    this.testAddPlan = async (price, window, gasLimit, token, account) => {
       const beforeCount = await this.rifScheduler.plansCount()
-      const receipt = await this.rifScheduler.addPlan(price, window, token, { from: account })
+      const receipt = await this.rifScheduler.addPlan(price, window, gasLimit, token, { from: account })
       expectEvent(receipt, 'PlanAdded', {
         price: price,
         window: window,
+        gasLimit: gasLimit,
         token: token,
       })
       const afterCount = await this.rifScheduler.plansCount()
@@ -25,7 +26,7 @@ contract('RIFScheduler - plans', (accounts) => {
     }
 
     this.testRemovePlan = async (account) => {
-      await this.testAddPlan(plans[0].price, plans[0].window, this.token.address, account)
+      await this.testAddPlan(plans[0].price, plans[0].window, plans[0].gasLimit, this.token.address, account)
       const planActive = await this.rifScheduler.plans(0)
       assert.strictEqual(planActive.active, true, `The plan is not active`)
       await this.rifScheduler.removePlan(0, { from: account })
@@ -35,16 +36,20 @@ contract('RIFScheduler - plans', (accounts) => {
   })
 
   it('initially has no plans', () => this.rifScheduler.plansCount().then((count) => assert.strictEqual(count.toString(), '0')))
-  it('should add a plan', () => this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.serviceProvider))
+  it('should add a plan', () =>
+    this.testAddPlan(plans[0].price, plans[0].window, plans[0].gasLimit, this.token.address, this.serviceProvider))
   it('should add two plans', async () => {
     //payed with ERC-20 or 677
-    await this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.serviceProvider)
+    await this.testAddPlan(plans[0].price, plans[0].window, plans[0].gasLimit, this.token.address, this.serviceProvider)
     //payed with rBTC
-    await this.testAddPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, this.serviceProvider)
+    await this.testAddPlan(plans[1].price, plans[1].window, plans[1].gasLimit, constants.ZERO_ADDRESS, this.serviceProvider)
   })
 
   it('should reject plans added by other users', () =>
-    expectRevert(this.testAddPlan(plans[0].price, plans[0].window, this.token.address, this.requestor), 'Not authorized'))
+    expectRevert(
+      this.testAddPlan(plans[0].price, plans[0].window, plans[0].gasLimit, this.token.address, this.requestor),
+      'Not authorized'
+    ))
 
   it('should cancel a plan', () => this.testRemovePlan(this.serviceProvider))
 

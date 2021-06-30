@@ -13,10 +13,12 @@ contract('RIFScheduler - purchase', (accounts) => {
     this.rifScheduler = rifScheduler
     this.token2 = token2
 
-    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
-    await this.rifScheduler.addPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider })
-    await this.rifScheduler.addPlan(toBN(0), plans[1].window, this.token.address, { from: this.serviceProvider }) //free plan
-    await this.rifScheduler.addPlan(toBN(0), plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider }) //free plan
+    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, plans[0].gasLimit, this.token.address, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[1].price, plans[1].window, plans[1].gasLimit, constants.ZERO_ADDRESS, {
+      from: this.serviceProvider,
+    })
+    await this.rifScheduler.addPlan(toBN(0), plans[1].window, plans[1].gasLimit, this.token.address, { from: this.serviceProvider }) //free plan
+    await this.rifScheduler.addPlan(toBN(0), plans[1].window, plans[1].gasLimit, constants.ZERO_ADDRESS, { from: this.serviceProvider }) //free plan
 
     this.testERC20Purchase = async (planId, value) => {
       const plan = await this.rifScheduler.plans(planId)

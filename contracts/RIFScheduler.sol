@@ -29,7 +29,6 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 plan;
     address to;
     bytes data;
-    uint256 gas;
     uint256 timestamp;
     uint256 value;
     ExecutionState state;
@@ -38,6 +37,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   struct Plan {
     uint256 pricePerExecution;
     uint256 window;
+    uint256 gasLimit;
     IERC677 token;
     bool active;
   }
@@ -51,7 +51,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   mapping(bytes32 => Execution) private executions;
   mapping(address => bytes32[]) private executionsByRequestor; // redundant with executions, allows requestors to query all their executions wihtout any 2nd layer
 
-  event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window);
+  event PlanAdded(uint256 indexed index, uint256 price, address token, uint256 window, uint256 gasLimit);
   event PlanRemoved(uint256 indexed index);
 
   event ExecutionPurchased(address indexed requestor, uint256 plan, uint256 amount);
@@ -79,10 +79,11 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   function addPlan(
     uint256 price,
     uint256 window,
+    uint256 gasLimit,
     IERC677 token
   ) external onlyProvider whenNotPaused {
-    plans.push(Plan(price, window, token, true));
-    emit PlanAdded(plans.length - 1, price, address(token), window);
+    plans.push(Plan(price, window, gasLimit, token, true));
+    emit PlanAdded(plans.length - 1, price, address(token), window, gasLimit);
   }
 
   function removePlan(uint256 plan) external onlyProvider {
@@ -188,21 +189,17 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
   ////////////////
 
   function getExecutionId(Execution memory execution) public pure returns (bytes32) {
-    return
-      keccak256(
-        abi.encode(execution.requestor, execution.plan, execution.to, execution.data, execution.gas, execution.timestamp, execution.value)
-      );
+    return keccak256(abi.encode(execution.requestor, execution.plan, execution.to, execution.data, execution.timestamp, execution.value));
   }
 
   function _schedule(
     uint256 plan,
     address to,
     bytes memory data,
-    uint256 gas,
     uint256 timestamp,
     uint256 value
   ) private whenNotPaused returns (bytes32 id) {
-    Execution memory execution = Execution(msg.sender, plan, to, data, gas, timestamp, value, ExecutionState.Scheduled);
+    Execution memory execution = Execution(msg.sender, plan, to, data, timestamp, value, ExecutionState.Scheduled);
     id = getExecutionId(execution);
 
     require(getState(id) == ExecutionState.Nonexistent, 'Already scheduled');
@@ -221,22 +218,21 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 plan,
     address to,
     bytes calldata data,
-    uint256 gas,
     uint256 timestamp
   ) external payable returns (bytes32 id) {
-    return (_schedule(plan, to, data, gas, timestamp, msg.value));
+    return (_schedule(plan, to, data, timestamp, msg.value));
   }
 
   function batchSchedule(bytes[] calldata data) external payable returns (bytes32[] memory ids) {
     uint256 totalValue;
     ids = new bytes32[](data.length);
     for (uint256 i = 0; i < data.length; i++) {
-      (uint256 plan, address to, bytes memory txData, uint256 gas, uint256 timestamp, uint256 value) = abi.decode(
+      (uint256 plan, address to, bytes memory txData, uint256 timestamp, uint256 value) = abi.decode(
         data[i],
-        (uint256, address, bytes, uint256, uint256, uint256)
+        (uint256, address, bytes, uint256, uint256)
       );
       totalValue += value;
-      ids[i] = _schedule(plan, to, txData, gas, timestamp, value);
+      ids[i] = _schedule(plan, to, txData, timestamp, value);
     }
     require(totalValue == msg.value, "Executions total value doesn't match");
   }
@@ -328,7 +324,9 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     require(getState(id) == ExecutionState.Scheduled, 'Not scheduled');
     require((execution.timestamp - plans[execution.plan].window) < block.timestamp, 'Too soon');
 
-    (bool success, bytes memory result) = payable(execution.to).call{ gas: execution.gas, value: execution.value }(execution.data);
+    (bool success, bytes memory result) = payable(execution.to).call{ gas: plans[execution.plan].gasLimit, value: execution.value }(
+      execution.data
+    );
 
     emit Executed(id, success, result);
 

@@ -24,24 +24,27 @@ contract('RIFScheduler - execution', (accounts) => {
 
     this.getState = (executionId) => this.rifScheduler.getState(executionId).then((state) => state.toString())
 
-    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, this.token.address, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[0].price, plans[0].window, plans[0].gasLimit, this.token.address, { from: this.serviceProvider })
     plans[0].token = this.token.address
-    await this.rifScheduler.addPlan(plans[1].price, plans[1].window, constants.ZERO_ADDRESS, { from: this.serviceProvider })
+    await this.rifScheduler.addPlan(plans[1].price, plans[1].window, plans[1].gasLimit, constants.ZERO_ADDRESS, {
+      from: this.serviceProvider,
+    })
     plans[1].token = constants.ZERO_ADDRESS
+    await this.rifScheduler.addPlan(plans[2].price, plans[2].window, plans[2].gasLimit, this.token.address, { from: this.serviceProvider })
+    plans[2].token = this.token.address
 
     this.payWithRBTC = (planId) => plans[planId].token === constants.ZERO_ADDRESS
 
     this.testScheduleWithValue = async (planId, data, value, timestamp) => {
       const to = this.counter.address
       const from = this.requestor
-      const gas = toBN(await this.counter.inc.estimateGas())
       if (this.payWithRBTC(planId)) {
         await this.rifScheduler.purchase(planId, toBN(1), { from, value: plans[planId].price })
       } else {
         await this.token.approve(this.rifScheduler.address, plans[planId].price, { from })
         await this.rifScheduler.purchase(planId, toBN(1), { from })
       }
-      const scheduleReceipt = await this.rifScheduler.schedule(planId, to, data, gas, timestamp, { from, value })
+      const scheduleReceipt = await this.rifScheduler.schedule(planId, to, data, timestamp, { from, value })
       return getExecutionId(scheduleReceipt)
     }
 
@@ -259,13 +262,13 @@ contract('RIFScheduler - execution', (accounts) => {
 
     it('due to insufficient gas in called contract', async () => {
       const to = this.counter.address
-      const gas = toBN(10)
+      const planId = 2
       const timestamp = await time.latest()
       const from = this.requestor
       const timestampInsideWindow = timestamp.add(insideWindow(0))
-      await this.token.approve(this.rifScheduler.address, plans[0].price, { from })
-      await this.rifScheduler.purchase(toBN(0), toBN(1), { from })
-      const scheduleReceipt = await this.rifScheduler.schedule(0, to, failData, gas, timestampInsideWindow, { from })
+      await this.token.approve(this.rifScheduler.address, plans[planId].price, { from })
+      await this.rifScheduler.purchase(toBN(planId), toBN(1), { from })
+      const scheduleReceipt = await this.rifScheduler.schedule(planId, to, failData, timestampInsideWindow, { from })
       const txId = getExecutionId(scheduleReceipt)
       const receipt = await this.rifScheduler.execute(txId)
       expectEvent(receipt, 'Executed', {
