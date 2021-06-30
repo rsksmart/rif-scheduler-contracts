@@ -21,7 +21,7 @@ exports.ExecutionState = {
 exports.setupContracts = async (contractAdmin, serviceProvider, payee, requestor) => {
   const token = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RIFOS', 'RIF')
   const token2 = await ERC677.new(contractAdmin, toBN('1000000000000000000000'), 'RDOC', 'DOC')
-  const rifScheduler = await RIFScheduler.new(serviceProvider, payee)
+  const rifScheduler = await RIFScheduler.new(serviceProvider, payee, toBN(60))
 
   await token.transfer(requestor, 100000, { from: contractAdmin })
   await token2.transfer(requestor, 100000, { from: contractAdmin })

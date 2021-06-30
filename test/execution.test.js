@@ -246,7 +246,7 @@ contract('RIFScheduler - execution', (accounts) => {
     it('due to revert in called contract', async () => {
       const timestamp = await time.latest()
       // scheduled for tomorrow
-      const txId = await this.testScheduleWithValue(0, failData, toBN(0), timestamp.add(toBN(10)))
+      const txId = await this.testScheduleWithValue(0, failData, toBN(0), timestamp.add(toBN(100)))
       const tx = await this.rifScheduler.execute(txId)
       const log = tx.logs.find((l) => l.event === 'Executed')
       assert.ok(Buffer.from(log.args.result.slice(2), 'hex').toString('utf-8').includes('Boom'))
