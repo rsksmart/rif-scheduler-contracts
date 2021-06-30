@@ -11,7 +11,7 @@ module.exports = async (deployer, network, accounts) => {
   }
 
   if (network !== 'test' && network !== 'soliditycoverage') {
-    await deployer.deploy(RIFScheduler, contractAdmin, payee)
+    await deployer.deploy(RIFScheduler, contractAdmin, payee, 60)
     console.log('RIFScheduler Contract implementation: ' + RIFScheduler.address)
   }
 
