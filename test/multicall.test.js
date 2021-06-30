@@ -28,7 +28,7 @@ contract('RIFScheduler - multicall', (accounts) => {
 
     const purchaseCall = this.rifScheduler.contract.methods.purchase(plan, 1).encodeABI()
     const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, scheduleTime).encodeABI()
-    const results = await this.rifScheduler.multicall([purchaseCall, schedule], { from: this.requestor })
+    const results = await this.rifScheduler.multicall([purchaseCall, schedule], true, { from: this.requestor })
     const executionId = getExecutionId(results)
     const actual = await this.rifScheduler.getExecutionById(executionId)
     const scheduled = await this.rifScheduler.remainingExecutions(this.requestor, plan)
