@@ -44,7 +44,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
 
   address public serviceProvider;
   address public payee;
-  uint256 public minimumTimeBeforeExecution; // minimum time required between the schedule and execution time requested 
+  uint256 public minimumTimeBeforeExecution; // minimum time required between the schedule and execution time requested
 
   Plan[] public plans;
 
@@ -65,7 +65,11 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     _;
   }
 
-  constructor(address serviceProvider_, address payee_, uint256 minimumTimeBeforeExecution_) {
+  constructor(
+    address serviceProvider_,
+    address payee_,
+    uint256 minimumTimeBeforeExecution_
+  ) {
     require(payee_ != address(0x0), 'Payee address cannot be 0x0');
     require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
     require(minimumTimeBeforeExecution_ >= 15, 'Executions should be requested at least 15 seconds in advance');
