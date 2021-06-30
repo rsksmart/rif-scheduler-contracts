@@ -6,15 +6,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 
 contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
-  enum ExecutionState {
-    Nonexistent,
-    Scheduled,
-    ExecutionSuccessful,
-    ExecutionFailed,
-    Overdue,
-    Refunded,
-    Cancelled
-  }
+  enum ExecutionState { Nonexistent, Scheduled, ExecutionSuccessful, ExecutionFailed, Overdue, Refunded, Cancelled }
   // State transitions for scheduled executions:
   //   Initial state: Nonexistent
   //   Nonexistent -> Scheduled (requestor scheduled execution)
@@ -227,10 +219,8 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     uint256 totalValue;
     ids = new bytes32[](data.length);
     for (uint256 i = 0; i < data.length; i++) {
-      (uint256 plan, address to, bytes memory txData, uint256 timestamp, uint256 value) = abi.decode(
-        data[i],
-        (uint256, address, bytes, uint256, uint256)
-      );
+      (uint256 plan, address to, bytes memory txData, uint256 timestamp, uint256 value) =
+        abi.decode(data[i], (uint256, address, bytes, uint256, uint256));
       totalValue += value;
       ids[i] = _schedule(plan, to, txData, timestamp, value);
     }
@@ -325,9 +315,7 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     require(getState(id) == ExecutionState.Scheduled, 'Not scheduled');
     require((execution.timestamp - plan.window) < block.timestamp, 'Too soon');
 
-    (bool success, bytes memory result) = payable(execution.to).call{ gas: plan.gasLimit, value: execution.value }(
-      execution.data
-    );
+    (bool success, bytes memory result) = payable(execution.to).call{ gas: plan.gasLimit, value: execution.value }(execution.data);
 
     emit Executed(id, success, result);
 
