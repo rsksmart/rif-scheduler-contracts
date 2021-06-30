@@ -48,7 +48,7 @@ contract('RIFScheduler - multicall', (accounts) => {
     const scheduleTime = (await time.latest()).add(toBN(100))
     const to = this.counter.address
     const gas = toBN(await this.counter.inc.estimateGas())
-    const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
+    const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, scheduleTime).encodeABI()
 
     const txID = '0x600b40d71ede22186cf277bdf9293563e9532729324708bcd50de97b01d7ffa8'
     const getExecutionState = this.rifScheduler.contract.methods.getState(txID).encodeABI() // We don't care if doesn't exist
@@ -64,7 +64,7 @@ contract('RIFScheduler - multicall', (accounts) => {
     const scheduleTime = (await time.latest()).add(toBN(100))
     const to = this.counter.address
     const gas = toBN(await this.counter.inc.estimateGas())
-    const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, gas, scheduleTime).encodeABI()
+    const schedule = this.rifScheduler.contract.methods.schedule(plan, to, incData, scheduleTime).encodeABI()
 
     const txID = '0x600b40d71ede22186cf277bdf9293563e9532729324708bcd50de97b01d7ffa8'
     const getExecutionState = this.rifScheduler.contract.methods.getState(txID).encodeABI() // We don't care if doesn't exist
