@@ -34,7 +34,7 @@ module.exports = async (deployer, network, accounts) => {
     console.log('Summary')
     console.log('=======')
     console.log('')
-    console.log(`Schedule: ${RIFSchedule.address}`)
+    console.log(`Schedule: ${RIFScheduler.address}`)
     console.log(`Token: ${ERC677.address}`)
     console.log(`Counter: ${Counter.address}`)
   }
