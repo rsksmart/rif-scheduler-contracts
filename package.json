@@ -1,22 +1,27 @@
 {
   "name": "@rsksmart/rif-scheduler-contracts",
-  "version": "0.0.1",
+  "version": "1.0.0-beta.3",
   "description": "RIF Scheduler contracts",
   "files": [
-    "/contracts",
-    "!/contracts/Migrations.sol"
+    "/contracts/RIFScheduler.sol",
+    "RIFScheduler*.json",
+    "types",
+    "dist"
   ],
   "scripts": {
-    "test": "npx truffle test",
+    "compile": "npx truffle compile --all",
+    "test": "npm run compile && npx truffle test",
     "coverage": "npx truffle run coverage",
     "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "lint:fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js' 'migrations/**/*.js'",
     "deploy:ganache": "npx truffle migrate --network ganache",
-    "deploy:rsk-testnet": "npx truffle migrate --network rskTestnet"
+    "deploy:rsk-testnet": "npx truffle migrate --network rskTestnet",
+    "types": "npx typechain \"build/contracts/RIFScheduler.json\" --target ethers-v5 && npx typechain \"build/contracts/RIFScheduler.json\" --target web3-v1",
+    "prepublish": "rimraf ./dist && npm run compile && npm run types && node datagen.js && tsc"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rnsdomains/rns-resolver.git"
+    "url": "git+https://github.com/rsksmart/rif-scheduler-contracts.git"
   },
   "keywords": [
     "rsk",
@@ -26,18 +31,23 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^4.1.0",
+    "@openzeppelin/contracts": "^4.1.0",
     "@rsksmart/erc677": "^2.0.0"
   },
   "devDependencies": {
     "@openzeppelin/test-helpers": "^0.5.11",
-    "@openzeppelin/truffle-upgrades": "^1.6.1",
     "@truffle/hdwallet-provider": "^1.2.6",
-    "ganache-time-traveler": "^1.0.15",
-    "prettier": "^2.2.1",
-    "prettier-plugin-solidity": "^1.0.0-beta.10",
+    "@typechain/ethers-v5": "^7.0.1",
+    "@typechain/web3-v1": "^3.0.0",
+    "ethers": "^5.3.1",
+    "prettier": "^2.3.0",
+    "prettier-plugin-solidity": "^1.0.0-beta.13",
+    "rimraf": "^3.0.2",
     "solidity-coverage": "^0.7.16",
-    "truffle": "^5.3.1",
-    "truffle-flattener": "^1.5.0"
+    "truffle": "^5.3.8",
+    "truffle-flattener": "^1.5.0",
+    "ts-node": "^9.1.1",
+    "typechain": "^5.0.0",
+    "typescript": "^4.3.4"
   }
 }

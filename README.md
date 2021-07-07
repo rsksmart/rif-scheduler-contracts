@@ -3,12 +3,19 @@
 </p>
 <h3 align="middle">RIF Scheduler contracts</h3>
 <p align="middle">
+    <a href="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts">
+        <img src="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts.svg" alt="npm" />
+    </a>
     <a href="https://developers.rsk.co/rif/scheduler/contracts">
         <img src="https://img.shields.io/badge/-docs-brightgreen" alt="docs" />
     </a>
     <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml" alt="ci">
         <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/ci.yml/badge.svg" alt="ci" />
     </a>
+    <a href='https://coveralls.io/github/rsksmart/rif-scheduler-contracts?branch=main'>
+        <img src='https://coveralls.io/repos/github/rsksmart/rif-scheduler-contracts/badge.svg?branch=develop' alt='Coverage Status' />
+    </a>
+    <br />
     <a href="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/scan.yml" alt="ci">
         <img src="https://github.com/rsksmart/rif-scheduler-contracts/actions/workflows/scan.yml/badge.svg" alt="ci" />
     </a>
@@ -17,9 +24,6 @@
     </a>
     <a href="https://lgtm.com/projects/g/rsksmart/rif-scheduler-contracts/context:javascript">
         <img src="https://img.shields.io/lgtm/grade/javascript/github/rsksmart/rif-scheduler-contracts">
-    </a>
-    <a href="https://codecov.io/gh/rsksmart/rif-scheduler-contracts">
-        <img src="https://codecov.io/gh/rsksmart/rif-scheduler-contracts/branch/develop/graph/badge.svg?token=72T5TQ34HT"/>
     </a>
 </p>
 
@@ -84,11 +88,13 @@ npm run deploy:rsk-mainnet # deploy to RSK Mainnet
 **RSK Testnet:**
 
 - Public contracts:
-    - One Shot Schedule singleton: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
-    - Proxy Factory: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
-- RIF Instance:
-    - Proxy: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
-    - Proxy Admin: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
+    - RIF Scheduler singleton: [`0xad249557515d8b89f2869834857bb872d7b5c398`](https://explorer.testnet.rsk.co/address/0xad249557515d8b89f2869834857bb872d7b5c398)
+
+**RSK Mainnet:**
+
+- Public contracts:
+ - RIF Scheduler singleton: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
+
 
 ## Acknowledgments
 

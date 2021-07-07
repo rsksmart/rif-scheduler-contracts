@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "es5",                          
+    "module": "commonjs",                    
+    "lib": ["es6"],                     
+    "allowJs": true,
+    "outDir": "dist",    
+    "declaration": true,
+    "declarationMap": true,
+    "declarationDir": "dist",                      
+    "sourceMap": true,
+    "rootDir": "types",
+    "strict": true,         
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true
+  },
+  "include":[
+    "types"
+  ],
+  "exclude": [
+    "test","dist"
+  ]
+}
