@@ -73,6 +73,13 @@ First install [`slither`](https://github.com/crytic/slither) and run:
 slither .
 ```
 
+### Branching model
+
+- `main` has latest release. Merge into `main` will deploy to npm. Do merge commits.
+- `develop` has latest approved PR. PRs need to pass `ci` and `scan`. Do squash & merge.
+- Use branches pointing to `develop` to add new PRs.
+- Do external PRs against latest commit in `develop`.
+
 ### Deploy
 
 First, create a `.secret` file with a mnemonic phrase. You will need to fund the account. Then run:
@@ -94,7 +101,6 @@ npm run deploy:rsk-mainnet # deploy to RSK Mainnet
 
 - Public contracts:
  - RIF Scheduler singleton: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
-
 
 ## Acknowledgments
 
