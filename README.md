@@ -1,7 +1,7 @@
 <p align="middle">
     <img src="https://www.rifos.org/assets/img/logo.svg" alt="logo" height="100" >
 </p>
-<h3 align="middle">RIF Scheduler contracts</h3>
+<h3 align="middle"><code>@rsksmart/rif-scheduler-contracts</code></h3>
 <p align="middle">
     <a href="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts">
         <img src="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts.svg" alt="npm" />
