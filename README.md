@@ -1,7 +1,7 @@
 <p align="middle">
     <img src="https://www.rifos.org/assets/img/logo.svg" alt="logo" height="100" >
 </p>
-<h3 align="middle">RIF Scheduler contracts</h3>
+<h3 align="middle"><code>@rsksmart/rif-scheduler-contracts</code></h3>
 <p align="middle">
     <a href="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts">
         <img src="https://badge.fury.io/js/%40rsksmart%2Frif-scheduler-contracts.svg" alt="npm" />
@@ -28,10 +28,15 @@
 </p>
 
 RIF Scheduler smart contracts are used to
-- pay for the service with RIF tokens,
-- schedule transactions,
-- check transaction execution statuses and
-- allow the service provider to execute the transactions and collect their reward
+- purchase execution plans with ERC-20 tokens or RBTC,
+- schedule executions, (batch scheduling available)
+- check execution statuses and
+- cancel executions
+
+The Service Provider must deploy this contract and set the address in the [RIF Scheduler Service](https://github.com/rsksmart/rif-scheduler-services) to start making revenew. The SP can:
+- Create plans and choose the payment currency. It can be RBTC. Plans have a price per execution, that is given by the _window_ and the _gas limit_.
+- Execute the scheduled executions and collect the reward. It can also change the payee address.
+- Pause/unpause the contract. While paused, users can _cancel purchasing_.
 
 ## Run for development
 
@@ -92,15 +97,11 @@ npm run deploy:rsk-mainnet # deploy to RSK Mainnet
 
 ## Deployments
 
-**RSK Testnet:**
+RIF is running an instance of the Scheduler.
 
-- Public contracts:
-    - RIF Scheduler singleton: [`0xad249557515d8b89f2869834857bb872d7b5c398`](https://explorer.testnet.rsk.co/address/0xad249557515d8b89f2869834857bb872d7b5c398)
+**RSK Testnet:** [`0xad249557515d8b89f2869834857bb872d7b5c398`](https://explorer.testnet.rsk.co/address/0xad249557515d8b89f2869834857bb872d7b5c398)
 
-**RSK Mainnet:**
-
-- Public contracts:
- - RIF Scheduler singleton: [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
+**RSK Mainnet:** [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
 
 ## Acknowledgments
 
