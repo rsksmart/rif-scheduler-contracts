@@ -33,7 +33,7 @@ RIF Scheduler smart contracts are used to
 - check execution statuses and
 - cancel executions
 
-The Service Provider must deploy this contract and set the address in the [RIF Scheduler Service](https://github.com/rsksmart/rif-scheduler-services) to start making revenew. The SP can:
+The Service Provider must deploy this contract and set the address in the [RIF Scheduler Service](https://github.com/rsksmart/rif-scheduler-services) to start making revenue. The SP can:
 - Create plans and choose the payment currency. It can be RBTC. Plans have a price per execution, that is given by the _window_ and the _gas limit_.
 - Execute the scheduled executions and collect the reward. It can also change the payee address.
 - Pause/unpause the contract. While paused, users can _cancel purchasing_.
