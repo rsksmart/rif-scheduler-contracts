@@ -47,7 +47,7 @@ module.exports = {
     rskMainnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
-        providerOrUrl: `https://did.rsk.co:4444`,
+        providerOrUrl: `https://public-node.rsk.co`,
         derivationPath: "m/44'/137'/0'/0/"
       }),
       network_id: 30,
