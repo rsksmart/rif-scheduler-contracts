@@ -101,7 +101,7 @@ RIF is running an instance of the Scheduler.
 
 **RSK Testnet:** [`0xad249557515d8b89f2869834857bb872d7b5c398`](https://explorer.testnet.rsk.co/address/0xad249557515d8b89f2869834857bb872d7b5c398)
 
-**RSK Mainnet:** [`TBD`](https://explorer.testnet.rsk.co/address/TBD)
+**RSK Mainnet:** [`0x7429d3222f7291a53b5fda3fe8d42b49d2ae6a19`](https://explorer.testnet.rsk.co/address/0x7429d3222f7291a53b5fda3fe8d42b49d2ae6a19)
 
 ## Acknowledgments
 

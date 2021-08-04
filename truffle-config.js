@@ -42,16 +42,16 @@ module.exports = {
         derivationPath: "m/44'/37310'/0'/0/"
       }),
       network_id: 31,
-      gasPrice: 600000000,
+      gasPrice: 600_000_000,
     },
     rskMainnet: {
       provider: () => new HDWalletProvider({
         mnemonic,
-        providerOrUrl: `https://public-node.rsk.co`,
-        derivationPath: "m/44'/37310'/0'/0/"
+        providerOrUrl: `https://did.rsk.co:4444`,
+        derivationPath: "m/44'/137'/0'/0/"
       }),
       network_id: 30,
-      gasPrice: 60000000,
+      gasPrice: 60_000_000,
     },
   },
 
