@@ -3,7 +3,7 @@ const RIFScheduler = artifacts.require('RIFScheduler')
 const Counter = artifacts.require('Counter')
 
 const RIF_TOKEN_MAINNET = '0x2acc95758f8b5f583470ba265eb685a8f45fc9d5'
-const logTxHash = truffleTx => console.log(truffleTx.tx)
+const logTxHash = (truffleTx) => console.log(truffleTx.tx)
 
 module.exports = async (deployer, network, accounts) => {
   const [contractAdmin, payee] = accounts
