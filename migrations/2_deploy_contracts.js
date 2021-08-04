@@ -1,6 +1,10 @@
 const ERC677 = artifacts.require('ERC677')
 const RIFScheduler = artifacts.require('RIFScheduler')
 const Counter = artifacts.require('Counter')
+
+const RIF_TOKEN_MAINNET = '0x2acc95758f8b5f583470ba265eb685a8f45fc9d5'
+const logTxHash = (truffleTx) => console.log(truffleTx.tx)
+
 module.exports = async (deployer, network, accounts) => {
   const [contractAdmin, payee] = accounts
 
@@ -10,7 +14,7 @@ module.exports = async (deployer, network, accounts) => {
     console.log('RIF Contract implementation: ' + ERC677.address)
   }
 
-  if (network !== 'test' && network !== 'soliditycoverage') {
+  if (network !== 'test' && network !== 'soliditycoverage' && network !== 'rskMainnet') {
     await deployer.deploy(RIFScheduler, contractAdmin, payee, 60)
     console.log('RIFScheduler Contract implementation: ' + RIFScheduler.address)
   }
@@ -19,6 +23,15 @@ module.exports = async (deployer, network, accounts) => {
     await RIFScheduler.deployed().then((rifScheduler) =>
       rifScheduler.addPlan('10000000000000', '7200', '100000', '0x19f64674d8a5b4e652319f5e239efd3bc969a1fe')
     )
+  }
+
+  if (network === 'rskMainnet') {
+    await deployer.deploy(RIFScheduler, accounts[0], accounts[0], 60)
+    const rifScheduler = await RIFScheduler.deployed()
+    await rifScheduler.addPlan('10000000000000000000', '1800', '200000', RIF_TOKEN_MAINNET).then(logTxHash)
+    await rifScheduler.addPlan('24000000000000000000', '1800', '500000', RIF_TOKEN_MAINNET).then(logTxHash)
+    await rifScheduler.addPlan('38000000000000000000', '600', '800000', RIF_TOKEN_MAINNET).then(logTxHash)
+    await rifScheduler.addPlan('47000000000000000000', '600', '1100000', RIF_TOKEN_MAINNET).then(logTxHash)
   }
 
   if (network === 'ganache') {
