@@ -111,6 +111,11 @@ contract RIFScheduler is IERC677TransferReceiver, ReentrancyGuard, Pausable {
     payee = payee_;
   }
 
+  function setServiceProvider(address serviceProvider_) external onlyProvider {
+    require(serviceProvider_ != address(0x0), 'Service provider address cannot be 0x0');
+    serviceProvider = serviceProvider_;
+  }
+
   function pause() external onlyProvider {
     _pause();
   }

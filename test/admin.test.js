@@ -80,4 +80,34 @@ contract('RIFScheduler - admin', (accounts) => {
         'Payee address cannot be 0x0'
       ))
   })
+
+  describe('service provider', () => {
+    beforeEach(async () => {
+      const { token, rifScheduler } = await setupContracts(this.contractAdmin, this.serviceProvider, this.payee, this.requestor)
+      this.token = token
+      this.rifScheduler = rifScheduler
+    })
+
+    it('should change the service provider address', async () => {
+      await this.rifScheduler.setServiceProvider(this.anotherAccount, { from: this.serviceProvider })
+      const newServiceProvider = await this.rifScheduler.serviceProvider()
+      assert.strictEqual(newServiceProvider.toString(), this.anotherAccount, 'New service provider not assigned')
+      // put it back
+      await this.rifScheduler.setServiceProvider(this.serviceProvider, { from: this.anotherAccount })
+      const revertedServiceProvider = await this.rifScheduler.serviceProvider()
+      assert.strictEqual(revertedServiceProvider.toString(), this.serviceProvider, 'New service provider change not reverted')
+    })
+
+    it('should not change the service provider if not the service provider', () =>
+      expectRevert(
+        this.rifScheduler.setServiceProvider(this.anotherAccount, { from: this.anotherAccount }), //call from wrong account
+        'Not authorized'
+      ))
+
+    it('should not change the service provider to 0x0', () =>
+      expectRevert(
+        this.rifScheduler.setServiceProvider(constants.ZERO_ADDRESS, { from: this.serviceProvider }), //call from wrong account
+        'Service provider address cannot be 0x0'
+      ))
+  })
 })
