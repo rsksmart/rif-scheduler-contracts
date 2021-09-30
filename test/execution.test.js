@@ -133,7 +133,6 @@ contract('RIFScheduler - execution', (accounts) => {
       const scheduleReceipt = await this.rifScheduler.schedule(planId, payTo, '0x', insideWindowTime, { from, value: valueForTx })
       const txId = await getExecutionId(scheduleReceipt)
       await this.executeWithTime(txId, insideWindowTime)
-      
       const finalBalance = await web3.eth.getBalance(payTo)
       const expectedBalance = toBN(initialBalance).add(valueForTx)
       assert.strictEqual(expectedBalance.toString(), finalBalance.toString(), 'Transaction value not transferred')
