@@ -130,7 +130,7 @@ contract('RIFScheduler - execution', (accounts) => {
       const insideWindowTime = timestamp.add(insideWindow(planId))
 
       await this.rifScheduler.purchase(planId, toBN(1), { from, value: plans[planId].price })
-      const scheduleReceipt = await this.rifScheduler.schedule(planId, payTo, '0x', insideWindowTime, { from, value:valueForTx })
+      const scheduleReceipt = await this.rifScheduler.schedule(planId, payTo, '0x', insideWindowTime, { from, value: valueForTx })
       const txId = await getExecutionId(scheduleReceipt)
       await this.executeWithTime(txId, insideWindowTime)
       
