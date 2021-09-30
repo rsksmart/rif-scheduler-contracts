@@ -118,6 +118,27 @@ contract('RIFScheduler - execution', (accounts) => {
       return this.testExecutionWithValue(toBN(1e15), 1, payableContract.address)
     })
 
+    it('should transfer rBTC to an EOA address', async () => {
+      const from = this.requestor
+      const payTo = this.anotherAccount
+      const valueForTx = toBN(10)
+
+      const initialBalance = await web3.eth.getBalance(payTo)
+
+      const timestamp = await time.latest()
+      const planId = 1
+      const insideWindowTime = timestamp.add(insideWindow(planId))
+
+      await this.rifScheduler.purchase(planId, toBN(1), { from, value: plans[planId].price })
+      const scheduleReceipt = await this.rifScheduler.schedule(planId, payTo, '0x', insideWindowTime, { from, value:valueForTx })
+      const txId = await getExecutionId(scheduleReceipt)
+      await this.executeWithTime(txId, insideWindowTime)
+      
+      const finalBalance = await web3.eth.getBalance(payTo)
+      const expectedBalance = toBN(initialBalance).add(valueForTx)
+      assert.strictEqual(expectedBalance.toString(), finalBalance.toString(), 'Transaction value not transferred')
+    })
+
     it('should execute and fail, then retry and success', async () => {
       const timestamp = await time.latest()
       const planId = 0
